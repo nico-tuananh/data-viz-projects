@@ -1,7 +1,7 @@
-<h1 align="center">Project Work for COMP4010 Data Visualization, Spring 2026</h1>
+<h1 align="center">Project Work for COMP4010 Data Visualization</h1>
 
 <p align="center">
-    This repository contains project work for COMP4010 Data Visualization course. It includes two major projects exploring different aspects of data visualization techniques, including data analysis, interactive visualizations, and visual storytelling.
+    This repository contains project work for COMP4010 (Data Visualization) course, Spring 2026 semester. It includes two major projects exploring different aspects of data visualization techniques, including data analysis, interactive visualizations, and visual storytelling.
 </p>
 
 ---
