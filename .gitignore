@@ -1,5 +1,5 @@
-.github
-Project 1/.venv
-Project 1/uv.lock
-Project 1/pyproject.toml
-Project 1/__pycache__/
+__pycache__/
+*.py[cod]
+*$py.class
+.DS_Store
+.ipynb_checkpoints/
