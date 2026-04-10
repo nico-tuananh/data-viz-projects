@@ -151,3 +151,5 @@ if __name__ == "__main__":
     fig_2d.show()
     fig_3d.show()
     fig_fingerprints.show()
+
+    
