@@ -23,8 +23,6 @@ def load_clean_data(drop_na=True):
     
     Parameters:
         drop_na: If True, drops rows with any missing values.
-                 If False, only drops rows with missing numeric measurements
-                 but keeps rows with missing sex.
     """
     df = load_raw_data()
     
@@ -33,10 +31,7 @@ def load_clean_data(drop_na=True):
     df["sex"] = df["sex"].astype("category")
     df["year"] = df["year"].astype("category")
     
-    if drop_na:
-        df = df.dropna()
-    else:
-        df = df.dropna(subset=NUMERIC_COLUMNS)
+    df = df.dropna()
     
     df = df.reset_index(drop=True)
     return df
@@ -45,7 +40,6 @@ def load_clean_data(drop_na=True):
 def add_derived_features(df):
     """Add derived features useful for visualization and analysis."""
     df = df.copy()
-    df["bill_ratio"] = df["bill_length_mm"] / df["bill_depth_mm"]
     df["body_mass_kg"] = df["body_mass_g"] / 1000
     return df
 
