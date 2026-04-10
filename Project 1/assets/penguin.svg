@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120" role="img" aria-label="Penguin illustration">
+  <defs>
+    <linearGradient id="sage" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#2f6f55" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#6aa084" stop-opacity="0.95"/>
+    </linearGradient>
+  </defs>
+
+  <!-- soft badge -->
+  <circle cx="60" cy="60" r="56" fill="#ffffff" opacity="0.92"/>
+  <circle cx="60" cy="60" r="56" fill="none" stroke="#0f172a" stroke-opacity="0.10" stroke-width="2"/>
+
+  <!-- body -->
+  <ellipse cx="60" cy="70" rx="26" ry="32" fill="#0f172a"/>
+  <ellipse cx="60" cy="74" rx="18" ry="24" fill="#f8fafc"/>
+
+  <!-- head -->
+  <circle cx="60" cy="40" r="20" fill="#0f172a"/>
+  <ellipse cx="60" cy="44" rx="12" ry="10" fill="#f8fafc"/>
+
+  <!-- eyes -->
+  <circle cx="53" cy="38" r="3" fill="#0f172a"/>
+  <circle cx="67" cy="38" r="3" fill="#0f172a"/>
+
+  <!-- beak -->
+  <path d="M60 44 L72 50 L60 54 L48 50 Z" fill="url(#sage)"/>
+
+  <!-- wings -->
+  <path d="M35 64 C26 72, 26 86, 40 90 C38 80, 38 72, 44 66 Z" fill="#0f172a" opacity="0.95"/>
+  <path d="M85 64 C94 72, 94 86, 80 90 C82 80, 82 72, 76 66 Z" fill="#0f172a" opacity="0.95"/>
+
+  <!-- feet -->
+  <path d="M48 98 C52 92, 56 92, 60 98 C56 102, 52 102, 48 98 Z" fill="url(#sage)"/>
+  <path d="M60 98 C64 92, 68 92, 72 98 C68 102, 64 102, 60 98 Z" fill="url(#sage)"/>
+</svg>
