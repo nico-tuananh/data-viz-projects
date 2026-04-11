@@ -4,10 +4,12 @@ from dash import dcc, html, Input, Output
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
+from typing import Any
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from preprocess import load_ml_ready_data
 
+# --- Plotly defaults ---
 PLOTLY_TEMPLATE = "plotly_white"
 GRAPH_CONFIG = {
     "displaylogo": False,
@@ -27,7 +29,7 @@ FOREST_SAGE = [
     "#b7d3c5",  # pale sage
 ]
 
-# Fixed species colors for cross-chart consistency (storytelling requirement)
+# --- Color mapping (kept consistent across all charts) ---
 SPECIES_COLOR_MAP = {
     "Adelie": "#60A5FA",     # lighter blue
     "Chinstrap": "#FBBF24",  # lighter ochre / amber
@@ -93,7 +95,7 @@ def apply_fig_style(fig: go.Figure) -> go.Figure:
     fig.update_yaxes(gridcolor="rgba(15, 23, 42, 0.10)")
     return fig
 
-# Load data
+# --- Data loading (runs once at server start) ---
 df_full, X_scaled, feature_names = load_ml_ready_data()
 df_full = df_full.reset_index(drop=True)
 
@@ -117,6 +119,522 @@ SPECIES_FACTS = (
 species_options = sorted(df_full["species"].astype(str).unique().tolist())
 island_options = sorted(df_full["island"].astype(str).unique().tolist())
 sex_options = sorted(df_full["sex"].astype(str).unique().tolist())
+
+
+# --- Callback helpers ---
+def _empty_outputs(message: str) -> tuple[Any, ...]:
+    alert = dbc.Alert(message, color="warning")
+    empty = go.Figure()
+    return alert, empty, empty, empty, empty, empty, empty, "", "", empty, empty
+
+
+def _normalize_filters(
+    selected_species: list[str] | None,
+    selected_island: list[str] | None,
+    selected_sex: list[str] | None,
+) -> tuple[list[str], list[str], list[str]]:
+    # Treat empty selection as "all" for each filter.
+    return (
+        selected_species or species_options,
+        selected_island or island_options,
+        selected_sex or sex_options,
+    )
+
+
+def _filter_df_and_indices(
+    selected_species: list[str],
+    selected_island: list[str],
+    selected_sex: list[str],
+):
+    mask = (
+        df_full["species"].isin(selected_species)
+        & df_full["island"].isin(selected_island)
+        & df_full["sex"].isin(selected_sex)
+    )
+    df = df_full.loc[mask]
+    filtered_indices = df.index.to_numpy(dtype=int)
+    return df, filtered_indices
+
+
+def _build_summary_cards(df) -> dbc.Row:
+    # KPI summary at the top.
+    total_penguins = int(len(df))
+    avg_mass = float(df["body_mass_kg"].mean())
+    heaviest_penguin = df.loc[df["body_mass_kg"].idxmax()]
+
+    heaviest_sex = str(heaviest_penguin.get("sex", "")).strip()
+    if not heaviest_sex or heaviest_sex.lower() == "nan":
+        heaviest_sex = "Unknown"
+    else:
+        heaviest_sex = heaviest_sex[:1].upper() + heaviest_sex[1:]
+
+    return dbc.Row(
+        [
+            dbc.Col(
+                dbc.Card(
+                    dbc.CardBody(
+                        [
+                            html.Div("Penguins Observed", className="ag-caption"),
+                            html.H2(f"{total_penguins}", className="mb-0 ag-data"),
+                        ]
+                    ),
+                    className="shadow-sm h-100 w-100",
+                ),
+                md=4,
+                className="d-flex",
+            ),
+            dbc.Col(
+                dbc.Card(
+                    dbc.CardBody(
+                        [
+                            html.Div("Average Body Mass (kg)", className="ag-caption"),
+                            html.H2(f"{avg_mass:.2f}", className="mb-0 ag-data"),
+                        ]
+                    ),
+                    className="shadow-sm h-100 w-100",
+                ),
+                md=4,
+                className="d-flex",
+            ),
+            dbc.Col(
+                dbc.Card(
+                    dbc.CardBody(
+                        [
+                            html.Div("Heaviest Penguin", className="ag-caption"),
+                            html.Div(
+                                f"{heaviest_sex} {heaviest_penguin['species']} ({heaviest_penguin['island']})",
+                                className="fw-semibold",
+                            ),
+                            html.Div(
+                                f"{float(heaviest_penguin['body_mass_kg']):.2f} kg",
+                                className="ag-caption ag-data",
+                            ),
+                        ]
+                    ),
+                    className="shadow-sm h-100 w-100",
+                ),
+                md=4,
+                className="d-flex",
+            ),
+        ],
+        className="g-3 mt-2 align-items-stretch",
+    )
+
+
+def _build_narrative(
+    df,
+    selected_species: list[str],
+    selected_island: list[str],
+    selected_sex: list[str],
+) -> str:
+    # Short, auto-generated insight text.
+    n = int(len(df))
+    selected_species_text = format_selection(selected_species, species_options, "species")
+    selected_island_text = format_selection(selected_island, island_options, "islands")
+    selected_sex_text = format_selection(
+        [capitalize_first_letter(s) for s in selected_sex],
+        [capitalize_first_letter(s) for s in sex_options],
+        "sexes",
+    )
+
+    subset_avg_mass = float(df["body_mass_kg"].mean())
+    pct_diff = 0.0
+    if GLOBAL_AVG_BODY_MASS_KG != 0:
+        pct_diff = (subset_avg_mass - GLOBAL_AVG_BODY_MASS_KG) / GLOBAL_AVG_BODY_MASS_KG * 100
+
+    heavier_lighter = "heavier" if pct_diff >= 0 else "lighter"
+    narrative_lines: list[str] = []
+
+    if n < 10:
+        narrative_lines.append("**Note:** Small sample size; trends may not be statistically significant.")
+
+    narrative_lines.append(
+        f"You are viewing **{n}** penguins from **{selected_species_text}** on **{selected_island_text}** (Sex: **{selected_sex_text}**)."
+    )
+    narrative_lines.append(
+        f"These penguins are **{abs(pct_diff):.1f}%** {heavier_lighter} than the dataset average body mass."
+    )
+
+    species_share = df["species"].value_counts(normalize=True)
+    if not species_share.empty and float(species_share.iloc[0]) >= 0.60:
+        top_species = str(species_share.index[0])
+        auto_insight = f"Most of this subset are **{top_species}** ({float(species_share.iloc[0]) * 100:.0f}%)."
+    elif abs(pct_diff) >= 5:
+        auto_insight = (
+            f"Body mass differs noticeably from the global average (**{abs(pct_diff):.1f}%** {heavier_lighter})."
+        )
+    else:
+        auto_insight = "Bill dimensions still show visible separation by species in many subsets."
+
+    narrative_lines.append(f"The strongest pattern in this subset is: {auto_insight}")
+
+    # Add one species-specific fact when the filter is focused.
+    if selected_species and len(selected_species) == 1:
+        sp = str(selected_species[0])
+        facts = SPECIES_FACTS.get(sp)
+        if facts:
+            avg_bill = float(facts["avg_bill_length_mm"])
+            bill_ranked = sorted(_species_bill_means.items(), key=lambda kv: kv[1])
+            bill_trait = "moderate-length"
+            if bill_ranked and sp == bill_ranked[0][0]:
+                bill_trait = "shorter"
+            elif bill_ranked and sp == bill_ranked[-1][0]:
+                bill_trait = "longer"
+
+            narrative_lines.append(
+                f"**{sp}** penguins are recognized by their **{bill_trait} bills** (avg **{avg_bill:.1f} mm**)."
+            )
+
+    return "\n\n".join(narrative_lines)
+
+
+def _compute_box_stats(source_df, value_col: str) -> dict[str, dict[str, float]]:
+    # Precompute distribution stats for hover text.
+    return (
+        source_df.groupby("species")[value_col]
+        .agg(
+            n="size",
+            min_val="min",
+            q1=lambda s: float(s.quantile(0.25)),
+            median="median",
+            q3=lambda s: float(s.quantile(0.75)),
+            max_val="max",
+            mean="mean",
+        )
+        .to_dict("index")
+    )
+
+
+def _species_count_fig(df) -> go.Figure:
+    counts = df.groupby("species").size().reset_index(name="count")
+    fig = px.bar(
+        counts,
+        x="species",
+        y="count",
+        color="species",
+        labels={"species": "Species", "count": "Count"},
+        category_orders={"species": SPECIES_ORDER},
+        color_discrete_map=SPECIES_COLOR_MAP,
+    )
+    fig = apply_fig_style(fig)
+    fig.update_layout(showlegend=False)
+    fig.update_traces(
+        hovertemplate=(
+            "Species: %{x}<br>"
+            "Count: %{y}"
+            "<extra></extra>"
+        )
+    )
+    return fig
+
+
+def _species_by_island_fig(df) -> go.Figure:
+    grouped = df.groupby(["island", "species"]).size().reset_index(name="count")
+    fig = px.bar(
+        grouped,
+        x="island",
+        y="count",
+        color="species",
+        barmode="stack",
+        labels={"island": "Island", "count": "Count", "species": "Species"},
+        category_orders={"species": SPECIES_ORDER},
+        color_discrete_map=SPECIES_COLOR_MAP,
+    )
+    fig = apply_fig_style(fig)
+    fig.update_layout(legend_title_text="Species")
+    fig.update_traces(
+        hovertemplate=(
+            "Island: %{x}<br>"
+            "Species: %{fullData.name}<br>"
+            "Count: %{y}"
+            "<extra></extra>"
+        )
+    )
+    return fig
+
+
+def _mass_histogram_fig(df) -> go.Figure:
+    fig = px.histogram(
+        df,
+        x="body_mass_kg",
+        color="species",
+        nbins=30,
+        opacity=0.85,
+        labels={"body_mass_kg": "Body Mass (kg)", "species": "Species"},
+        category_orders={"species": SPECIES_ORDER},
+        color_discrete_map=SPECIES_COLOR_MAP,
+    )
+    fig = apply_fig_style(fig)
+    fig.update_layout(legend_title_text="Species")
+    fig.update_traces(
+        hovertemplate=(
+            "Species: %{fullData.name}<br>"
+            "Body Mass (kg): %{x:.2f}<br>"
+            "Count: %{y}"
+            "<extra></extra>"
+        )
+    )
+    return fig
+
+
+def _bill_scatter_fig(df) -> go.Figure:
+    df_scatter = df.copy()
+    df_scatter["sex_display"] = df_scatter["sex"].astype(str).str.strip().str.capitalize()
+
+    fig = px.scatter(
+        df_scatter,
+        x="bill_length_mm",
+        y="bill_depth_mm",
+        color="species",
+        size="body_mass_g",
+        hover_name="species",
+        custom_data=["island", "sex_display", "body_mass_g"],
+        labels={
+            "bill_length_mm": "Bill Length (mm)",
+            "bill_depth_mm": "Bill Depth (mm)",
+            "body_mass_g": "Body Mass (g)",
+            "species": "Species",
+            "island": "Island",
+            "sex_display": "Sex",
+        },
+        category_orders={"species": SPECIES_ORDER},
+        color_discrete_map=SPECIES_COLOR_MAP,
+    )
+    fig = apply_fig_style(fig)
+    fig.update_layout(legend_title_text="Species")
+    fig.update_traces(
+        hovertemplate=(
+            "<b>%{hovertext}</b><br>"
+            "Bill Length: %{x:.1f} mm<br>"
+            "Bill Depth: %{y:.1f} mm<br>"
+            "Body Mass: %{customdata[2]:,.0f} g<br>"
+            "Island: %{customdata[0]}<br>"
+            "Sex: %{customdata[1]}"
+            "<extra></extra>"
+        )
+    )
+
+    # Highlight a notable extreme.
+    max_bill_penguin = df.loc[df["bill_length_mm"].idxmax()]
+    fig.add_annotation(
+        x=max_bill_penguin["bill_length_mm"],
+        y=max_bill_penguin["bill_depth_mm"],
+        text=f"Longest Bill: {max_bill_penguin['bill_length_mm']}mm",
+        showarrow=True,
+        arrowhead=2,
+        arrowsize=1.5,
+        arrowcolor="red",
+        font=dict(size=12, color="red"),
+    )
+    return fig
+
+
+def _box_fig(df, value_col: str, y_label: str, value_format: str, unit: str) -> go.Figure:
+    stats = _compute_box_stats(df, value_col)
+    fig = px.box(
+        df,
+        x="species",
+        y=value_col,
+        color="species",
+        labels={"species": "Species", value_col: y_label},
+        category_orders={"species": SPECIES_ORDER},
+        color_discrete_map=SPECIES_COLOR_MAP,
+        points=False,
+    )
+    fig = apply_fig_style(fig)
+    fig.update_layout(showlegend=False)
+    fig.update_traces(hoveron="boxes")
+
+    for trace in fig.data:
+        sp = str(getattr(trace, "name", ""))
+        st = stats.get(sp)
+        if not st:
+            continue
+        trace.hovertext = (
+            f"<b>{sp}</b><br>"
+            f"n: {int(st['n'])}<br>"
+            f"Median: {float(st['median']):{value_format}} {unit}<br>"
+            f"IQR: {float(st['q1']):{value_format}}–{float(st['q3']):{value_format}} {unit}<br>"
+            f"Min–Max: {float(st['min_val']):{value_format}}–{float(st['max_val']):{value_format}} {unit}"
+        )
+        trace.hovertemplate = "%{hovertext}<extra></extra>"
+
+    return fig
+
+
+def _ml_pca_figs(df, filtered_indices: np.ndarray, n_clusters: int, pca_mode: str):
+    # Builds the "Actual" and "Cluster" PCA charts.
+    fig_actual, fig_cluster = go.Figure(), go.Figure()
+    pca_variance_text = ""
+
+    X_subset = X_scaled[filtered_indices]
+    n_components = 3 if str(pca_mode).lower() == "3d" else 2
+    if X_subset.shape[0] < max(int(n_clusters), n_components):
+        return fig_actual, fig_cluster, pca_variance_text
+
+    kmeans = KMeans(n_clusters=int(n_clusters), random_state=42, n_init=10)
+    clusters = kmeans.fit_predict(X_subset)
+
+    df_viz = df.copy()
+    df_viz["Cluster"] = [f"Cluster {c}" for c in clusters]
+    df_viz["sex_display"] = df_viz["sex"].astype(str).str.strip().str.capitalize()
+
+    pca = PCA(n_components=n_components, random_state=42)
+    X_pca = pca.fit_transform(X_subset)
+
+    df_viz["PC1"] = X_pca[:, 0]
+    df_viz["PC2"] = X_pca[:, 1]
+    if n_components == 3:
+        df_viz["PC3"] = X_pca[:, 2]
+
+    retained = float(np.sum(pca.explained_variance_ratio_)) * 100
+    pca_variance_text = (
+        f"Using {n_components}D PCA, the projection retains {retained:.1f}% of the variance "
+        f"from the 4 original measurements."
+    )
+
+    cluster_order = [f"Cluster {i}" for i in range(int(n_clusters))]
+
+    if n_components == 2:
+        fig_actual = px.scatter(
+            df_viz,
+            x="PC1",
+            y="PC2",
+            color="species",
+            hover_name="species",
+            custom_data=["island", "sex_display"],
+            labels={
+                "PC1": "Principal Component 1",
+                "PC2": "Principal Component 2",
+                "species": "Species",
+                "island": "Island",
+                "sex_display": "Sex",
+            },
+            category_orders={"species": SPECIES_ORDER},
+            color_discrete_map=SPECIES_COLOR_MAP,
+        )
+        fig_actual = apply_fig_style(fig_actual)
+        fig_actual.update_layout(legend_title_text="Species")
+        fig_actual.update_traces(
+            hovertemplate=(
+                "<b>%{hovertext}</b><br>"
+                "PC1: %{x:.2f}<br>"
+                "PC2: %{y:.2f}<br>"
+                "Island: %{customdata[0]}<br>"
+                "Sex: %{customdata[1]}"
+                "<extra></extra>"
+            )
+        )
+
+        fig_cluster = px.scatter(
+            df_viz,
+            x="PC1",
+            y="PC2",
+            color="Cluster",
+            hover_name="species",
+            custom_data=["island", "sex_display"],
+            labels={
+                "PC1": "Principal Component 1",
+                "PC2": "Principal Component 2",
+                "Cluster": "Cluster",
+                "island": "Island",
+                "sex_display": "Sex",
+            },
+            category_orders={"Cluster": cluster_order},
+            color_discrete_map=CLUSTER_COLOR_MAP,
+        )
+        fig_cluster = apply_fig_style(fig_cluster)
+        fig_cluster.update_layout(legend_title_text="")
+        fig_cluster.update_traces(
+            hovertemplate=(
+                "<b>%{hovertext}</b><br>"
+                "Cluster: %{fullData.name}<br>"
+                "PC1: %{x:.2f}<br>"
+                "PC2: %{y:.2f}<br>"
+                "Island: %{customdata[0]}<br>"
+                "Sex: %{customdata[1]}"
+                "<extra></extra>"
+            )
+        )
+    else:
+        fig_actual = px.scatter_3d(
+            df_viz,
+            x="PC1",
+            y="PC2",
+            z="PC3",
+            color="species",
+            hover_name="species",
+            custom_data=["island", "sex_display"],
+            labels={
+                "PC1": "PC1",
+                "PC2": "PC2",
+                "PC3": "PC3",
+                "species": "Species",
+                "island": "Island",
+                "sex_display": "Sex",
+            },
+            category_orders={"species": SPECIES_ORDER},
+            color_discrete_map=SPECIES_COLOR_MAP,
+        )
+        fig_actual = apply_fig_style(fig_actual)
+        fig_actual.update_traces(marker={"size": 5, "opacity": 0.8})
+        fig_actual.update_layout(
+            scene_camera={"eye": {"x": 1.8, "y": 1.8, "z": 0.8}},
+            dragmode="orbit",
+            legend_title_text="Species",
+        )
+        fig_actual.update_traces(
+            hovertemplate=(
+                "<b>%{hovertext}</b><br>"
+                "PC1: %{x:.2f}<br>"
+                "PC2: %{y:.2f}<br>"
+                "PC3: %{z:.2f}<br>"
+                "Island: %{customdata[0]}<br>"
+                "Sex: %{customdata[1]}"
+                "<extra></extra>"
+            )
+        )
+
+        fig_cluster = px.scatter_3d(
+            df_viz,
+            x="PC1",
+            y="PC2",
+            z="PC3",
+            color="Cluster",
+            hover_name="species",
+            custom_data=["island", "sex_display"],
+            labels={
+                "PC1": "PC1",
+                "PC2": "PC2",
+                "PC3": "PC3",
+                "Cluster": "Cluster",
+                "island": "Island",
+                "sex_display": "Sex",
+            },
+            category_orders={"Cluster": cluster_order},
+            color_discrete_map=CLUSTER_COLOR_MAP,
+        )
+        fig_cluster = apply_fig_style(fig_cluster)
+        fig_cluster.update_traces(marker={"size": 5, "opacity": 0.8})
+        fig_cluster.update_layout(
+            scene_camera={"eye": {"x": 1.8, "y": 1.8, "z": 0.8}},
+            dragmode="orbit",
+            legend_title_text="",
+        )
+        fig_cluster.update_traces(
+            hovertemplate=(
+                "<b>%{hovertext}</b><br>"
+                "Cluster: %{fullData.name}<br>"
+                "PC1: %{x:.2f}<br>"
+                "PC2: %{y:.2f}<br>"
+                "PC3: %{z:.2f}<br>"
+                "Island: %{customdata[0]}<br>"
+                "Sex: %{customdata[1]}"
+                "<extra></extra>"
+            )
+        )
+
+    return fig_actual, fig_cluster, pca_variance_text
 
 # Initialize Dash application with Bootstrap theme.
 # The custom typography/palette is defined in assets/theme.css.
@@ -150,7 +668,9 @@ header = html.Div(
                                 className="ag-caption mb-0",
                             ),
                         ],
-                        md=9,
+                        lg=7,
+                        md=7,
+                        xs=12,
                     ),
                     dbc.Col(
                         dbc.Row(
@@ -166,6 +686,7 @@ header = html.Div(
                                             placeholder="Select species...",
                                         ),
                                     ],
+                                    xs=12,
                                     md=4,
                                 ),
                                 dbc.Col(
@@ -179,6 +700,7 @@ header = html.Div(
                                             placeholder="Select islands...",
                                         ),
                                     ],
+                                    xs=12,
                                     md=4,
                                 ),
                                 dbc.Col(
@@ -195,12 +717,15 @@ header = html.Div(
                                             placeholder="Select sex...",
                                         ),
                                     ],
+                                    xs=12,
                                     md=4,
                                 ),
                             ],
                             className="g-2",
                         ),
-                        md=3,
+                        lg=5,
+                        md=5,
+                        xs=12,
                         className="ag-controls",
                     ),
                 ],
@@ -477,495 +1002,38 @@ app.layout = html.Div([
     Input("pca-mode", "value")]
 )
 def update_dashboard(selected_species, selected_island, selected_sex, n_clusters, pca_mode):
-    selected_species = selected_species or species_options
-    selected_island = selected_island or island_options
-    selected_sex = selected_sex or sex_options
+    selected_species, selected_island, selected_sex = _normalize_filters(
+        selected_species, selected_island, selected_sex
+    )
 
     if not selected_species or not selected_island or not selected_sex:
-        empty_msg = dbc.Alert("Please select at least one option for each filter.", color="warning")
-        empty = go.Figure()
-        return empty_msg, empty, empty, empty, empty, empty, empty, "", "", empty, empty
+        return _empty_outputs("Please select at least one option for each filter.")
 
-    # Filter the dataframe
-    mask = (df_full['species'].isin(selected_species)) & (df_full['island'].isin(selected_island)) & (df_full['sex'].isin(selected_sex))
-    filtered_indices = df_full[mask].index
-    df = df_full.loc[filtered_indices]
-
+    df, filtered_indices = _filter_df_and_indices(
+        selected_species, selected_island, selected_sex
+    )
     if df.empty:
-        empty_msg = dbc.Alert("No data matches the selected filters. Please adjust your selection.", color="warning")
-        empty = go.Figure()
-        return empty_msg, empty, empty, empty, empty, empty, empty, "", "", empty, empty
-
-    # 1. Summary (KPI cards)
-    total_penguins = int(len(df))
-    avg_mass = float(df["body_mass_kg"].mean())
-    heaviest_penguin = df.loc[df["body_mass_kg"].idxmax()]
-
-    heaviest_sex = str(heaviest_penguin.get("sex", "")).strip()
-    if not heaviest_sex or heaviest_sex.lower() == "nan":
-        heaviest_sex = "Unknown"
-    else:
-        heaviest_sex = heaviest_sex[:1].upper() + heaviest_sex[1:]
-
-    summary = dbc.Row(
-        [
-            dbc.Col(
-                dbc.Card(
-                    dbc.CardBody(
-                        [
-                            html.Div("Penguins Observed", className="ag-caption"),
-                            html.H2(f"{total_penguins}", className="mb-0 ag-data"),
-                        ]
-                    ),
-                    className="shadow-sm h-100 w-100",
-                ),
-                md=4,
-                className="d-flex",
-            ),
-            dbc.Col(
-                dbc.Card(
-                    dbc.CardBody(
-                        [
-                            html.Div("Average Body Mass (kg)", className="ag-caption"),
-                            html.H2(f"{avg_mass:.2f}", className="mb-0 ag-data"),
-                        ]
-                    ),
-                    className="shadow-sm h-100 w-100",
-                ),
-                md=4,
-                className="d-flex",
-            ),
-            dbc.Col(
-                dbc.Card(
-                    dbc.CardBody(
-                        [
-                            html.Div("Heaviest Penguin", className="ag-caption"),
-                            html.Div(
-                                f"{heaviest_sex} {heaviest_penguin['species']} ({heaviest_penguin['island']})",
-                                className="fw-semibold",
-                            ),
-                            html.Div(
-                                f"{float(heaviest_penguin['body_mass_kg']):.2f} kg",
-                                className="ag-caption ag-data",
-                            ),
-                        ]
-                    ),
-                    className="shadow-sm h-100 w-100",
-                ),
-                md=4,
-                className="d-flex",
-            ),
-        ],
-        className="g-3 mt-2 align-items-stretch",
-    )
-
-    # Drill-down narrative (3 rules)
-    n = int(len(df))
-    selected_species_text = format_selection(selected_species, species_options, "species")
-    selected_island_text = format_selection(selected_island, island_options, "islands")
-    selected_sex_text = format_selection(
-        [capitalize_first_letter(s) for s in selected_sex],
-        [capitalize_first_letter(s) for s in sex_options],
-        "sexes",
-    )
-
-    subset_avg_mass = float(df["body_mass_kg"].mean())
-    pct_diff = 0.0
-    if GLOBAL_AVG_BODY_MASS_KG != 0:
-        pct_diff = (subset_avg_mass - GLOBAL_AVG_BODY_MASS_KG) / GLOBAL_AVG_BODY_MASS_KG * 100
-
-    heavier_lighter = "heavier" if pct_diff >= 0 else "lighter"
-    narrative_lines = []
-    if n < 10:
-        narrative_lines.append(
-            "**Note:** Small sample size; trends may not be statistically significant."
+        return _empty_outputs(
+            "No data matches the selected filters. Please adjust your selection."
         )
 
-    narrative_lines.append(
-        f"You are viewing **{n}** penguins from **{selected_species_text}** on **{selected_island_text}** (Sex: **{selected_sex_text}**)."
-    )
-    narrative_lines.append(
-        f"These penguins are **{abs(pct_diff):.1f}%** {heavier_lighter} than the dataset average body mass."
-    )
+    summary = _build_summary_cards(df)
+    narrative_md = _build_narrative(df, selected_species, selected_island, selected_sex)
 
-    auto_insight = None
-    species_share = df["species"].value_counts(normalize=True)
-    if not species_share.empty and float(species_share.iloc[0]) >= 0.60:
-        top_species = str(species_share.index[0])
-        auto_insight = f"Most of this subset are **{top_species}** ({float(species_share.iloc[0]) * 100:.0f}%)."
-    elif abs(pct_diff) >= 5:
-        auto_insight = f"Body mass differs noticeably from the global average (**{abs(pct_diff):.1f}%** {heavier_lighter})."
-    else:
-        auto_insight = "Bill dimensions still show visible separation by species in many subsets."
-
-    narrative_lines.append(f"The strongest pattern in this subset is: {auto_insight}")
-
-    if selected_species and len(selected_species) == 1:
-        sp = str(selected_species[0])
-        facts = SPECIES_FACTS.get(sp)
-        if facts:
-            avg_bill = float(facts["avg_bill_length_mm"])
-            bill_ranked = sorted(_species_bill_means.items(), key=lambda kv: kv[1])
-            bill_trait = "moderate-length"
-            if bill_ranked and sp == bill_ranked[0][0]:
-                bill_trait = "shorter"
-            elif bill_ranked and sp == bill_ranked[-1][0]:
-                bill_trait = "longer"
-
-            narrative_lines.append(
-                f"**{sp}** penguins are recognized by their **{bill_trait} bills** (avg **{avg_bill:.1f} mm**)."
-            )
-
-    narrative_md = "\n\n".join(narrative_lines)
-
-    # Who lives where?
-    df_species_count = df.groupby("species").size().reset_index(name="count")
-    fig_species = px.bar(
-        df_species_count,
-        x="species",
-        y="count",
-        color="species",
-        labels={"species": "Species", "count": "Count"},
-        category_orders={"species": SPECIES_ORDER},
-        color_discrete_map=SPECIES_COLOR_MAP,
-    )
-    fig_species = apply_fig_style(fig_species)
-    fig_species.update_layout(showlegend=False)
-    fig_species.update_traces(
-        hovertemplate=(
-            "Species: %{x}<br>"
-            "Count: %{y}"
-            "<extra></extra>"
-        )
+    # Charts
+    fig_species = _species_count_fig(df)
+    fig_bar = _species_by_island_fig(df)
+    fig_hist = _mass_histogram_fig(df)
+    fig_scatter = _bill_scatter_fig(df)
+    fig_box_mass = _box_fig(df, "body_mass_kg", "Body Mass (kg)", ".2f", "kg")
+    fig_box_flipper = _box_fig(
+        df, "flipper_length_mm", "Flipper Length (mm)", ".0f", "mm"
     )
 
-    # Species by Island (stacked)
-    fig_bar = px.bar(
-        df.groupby(['island', 'species']).size().reset_index(name='count'),     
-        x="island", y="count", color="species", barmode="stack",
-        labels={"island": "Island", "count": "Count", "species": "Species"},
-        category_orders={"species": SPECIES_ORDER},
-        color_discrete_map=SPECIES_COLOR_MAP,
+    # ML charts
+    fig_actual, fig_cluster, pca_variance_text = _ml_pca_figs(
+        df, filtered_indices, int(n_clusters), str(pca_mode)
     )
-    fig_bar = apply_fig_style(fig_bar)
-    fig_bar.update_layout(legend_title_text="Species")
-    fig_bar.update_traces(
-        hovertemplate=(
-            "Island: %{x}<br>"
-            "Species: %{fullData.name}<br>"
-            "Count: %{y}"
-            "<extra></extra>"
-        )
-    )
-
-    # Body Mass Histogram
-    fig_hist = px.histogram(
-        df, x="body_mass_kg", color="species", nbins=30, opacity=0.85,
-        labels={"body_mass_kg": "Body Mass (kg)", "species": "Species"},
-        category_orders={"species": SPECIES_ORDER},
-        color_discrete_map=SPECIES_COLOR_MAP,
-    )
-    fig_hist = apply_fig_style(fig_hist)
-    fig_hist.update_layout(legend_title_text="Species")
-    fig_hist.update_traces(
-        hovertemplate=(
-            "Species: %{fullData.name}<br>"
-            "Body Mass (kg): %{x:.2f}<br>"
-            "Count: %{y}"
-            "<extra></extra>"
-        )
-    )
-
-    # Scatter Plot (Bill dimensions)
-    df_scatter = df.copy()
-    df_scatter["sex_display"] = df_scatter["sex"].astype(str).str.strip().str.capitalize()
-
-    fig_scatter = px.scatter(
-        df_scatter,
-        x="bill_length_mm",
-        y="bill_depth_mm",
-        color="species",
-        size="body_mass_g",
-        hover_name="species",
-        custom_data=["island", "sex_display", "body_mass_g"],
-        labels={
-            "bill_length_mm": "Bill Length (mm)",
-            "bill_depth_mm": "Bill Depth (mm)",
-            "body_mass_g": "Body Mass (g)",
-            "species": "Species",
-            "island": "Island",
-            "sex_display": "Sex",
-        },
-        category_orders={"species": SPECIES_ORDER},
-        color_discrete_map=SPECIES_COLOR_MAP,
-    )
-    fig_scatter = apply_fig_style(fig_scatter)
-    fig_scatter.update_layout(legend_title_text="Species")
-
-    fig_scatter.update_traces(
-        hovertemplate=(
-            "<b>%{hovertext}</b><br>"
-            "Bill Length: %{x:.1f} mm<br>"
-            "Bill Depth: %{y:.1f} mm<br>"
-            "Body Mass: %{customdata[2]:,.0f} g<br>"
-            "Island: %{customdata[0]}<br>"
-            "Sex: %{customdata[1]}"
-            "<extra></extra>"
-        )
-    )
-    
-    max_bill_penguin = df.loc[df['bill_length_mm'].idxmax()]
-    fig_scatter.add_annotation(
-        x=max_bill_penguin['bill_length_mm'], y=max_bill_penguin['bill_depth_mm'],
-        text=f"Longest Bill: {max_bill_penguin['bill_length_mm']}mm",
-        showarrow=True, arrowhead=2, arrowsize=1.5, arrowcolor="red",
-        font=dict(size=12, color="red")
-    )
-
-    # Box plots
-    def _box_stats(source_df, value_col: str) -> dict:
-        agg = (
-            source_df.groupby("species")[value_col]
-            .agg(
-                n="size",
-                min_val="min",
-                q1=lambda s: float(s.quantile(0.25)),
-                median="median",
-                q3=lambda s: float(s.quantile(0.75)),
-                max_val="max",
-                mean="mean",
-            )
-            .to_dict("index")
-        )
-        return agg
-
-    mass_stats = _box_stats(df, "body_mass_kg")
-    flipper_stats = _box_stats(df, "flipper_length_mm")
-
-    fig_box_mass = px.box(
-        df,
-        x="species",
-        y="body_mass_kg",
-        color="species",
-        labels={"species": "Species", "body_mass_kg": "Body Mass (kg)"},
-        category_orders={"species": SPECIES_ORDER},
-        color_discrete_map=SPECIES_COLOR_MAP,
-        points=False,
-    )
-    fig_box_mass = apply_fig_style(fig_box_mass)
-    fig_box_mass.update_layout(showlegend=False)
-    fig_box_mass.update_traces(hoveron="boxes")
-    for trace in fig_box_mass.data:
-        sp = str(getattr(trace, "name", ""))
-        st = mass_stats.get(sp)
-        if not st:
-            continue
-        trace.hovertext = (
-            f"<b>{sp}</b><br>"
-            f"n: {int(st['n'])}<br>"
-            f"Median: {float(st['median']):.2f} kg<br>"
-            f"IQR: {float(st['q1']):.2f}–{float(st['q3']):.2f} kg<br>"
-            f"Min–Max: {float(st['min_val']):.2f}–{float(st['max_val']):.2f} kg"
-        )
-        trace.hovertemplate = "%{hovertext}<extra></extra>"
-
-    fig_box_flipper = px.box(
-        df,
-        x="species",
-        y="flipper_length_mm",
-        color="species",
-        labels={"species": "Species", "flipper_length_mm": "Flipper Length (mm)"},
-        category_orders={"species": SPECIES_ORDER},
-        color_discrete_map=SPECIES_COLOR_MAP,
-        points=False,
-    )
-    fig_box_flipper = apply_fig_style(fig_box_flipper)
-    fig_box_flipper.update_layout(showlegend=False)
-    fig_box_flipper.update_traces(hoveron="boxes")
-    for trace in fig_box_flipper.data:
-        sp = str(getattr(trace, "name", ""))
-        st = flipper_stats.get(sp)
-        if not st:
-            continue
-        trace.hovertext = (
-            f"<b>{sp}</b><br>"
-            f"n: {int(st['n'])}<br>"
-            f"Median: {float(st['median']):.0f} mm<br>"
-            f"IQR: {float(st['q1']):.0f}–{float(st['q3']):.0f} mm<br>"
-            f"Min–Max: {float(st['min_val']):.0f}–{float(st['max_val']):.0f} mm"
-        )
-        trace.hovertemplate = "%{hovertext}<extra></extra>"
-
-    # 5. ML Clustering in PCA space (2D / 3D)
-    fig_actual, fig_cluster = go.Figure(), go.Figure()
-    pca_variance_text = ""
-
-    X_subset = X_scaled[filtered_indices]
-    n_components = 3 if str(pca_mode).lower() == "3d" else 2
-    if X_subset.shape[0] >= max(int(n_clusters), n_components):
-        # K-Means (on scaled original features)
-        kmeans = KMeans(n_clusters=int(n_clusters), random_state=42, n_init=10)
-        clusters = kmeans.fit_predict(X_subset)
-
-        df_viz = df.copy()
-        df_viz["Cluster"] = [f"Cluster {c}" for c in clusters]
-        df_viz["sex_display"] = df_viz["sex"].astype(str).str.strip().str.capitalize()
-
-        # PCA projection (on the same scaled features)
-        pca = PCA(n_components=n_components, random_state=42)
-        X_pca = pca.fit_transform(X_subset)
-
-        df_viz["PC1"] = X_pca[:, 0]
-        df_viz["PC2"] = X_pca[:, 1]
-        if n_components == 3:
-            df_viz["PC3"] = X_pca[:, 2]
-
-        retained = float(np.sum(pca.explained_variance_ratio_)) * 100
-        pca_variance_text = (
-            f"Using {n_components}D PCA, the projection retains {retained:.1f}% of the variance "
-            f"from the 4 original measurements."
-        )
-
-        cluster_order = [f"Cluster {i}" for i in range(int(n_clusters))]
-
-        if n_components == 2:
-            fig_actual = px.scatter(
-                df_viz,
-                x="PC1",
-                y="PC2",
-                color="species",
-                hover_name="species",
-                custom_data=["island", "sex_display"],
-                labels={
-                    "PC1": "Principal Component 1",
-                    "PC2": "Principal Component 2",
-                    "species": "Species",
-                    "island": "Island",
-                    "sex_display": "Sex",
-                },
-                category_orders={"species": SPECIES_ORDER},
-                color_discrete_map=SPECIES_COLOR_MAP,
-            )
-            fig_actual = apply_fig_style(fig_actual)
-            fig_actual.update_layout(legend_title_text="Species")
-            fig_actual.update_traces(
-                hovertemplate=(
-                    "<b>%{hovertext}</b><br>"
-                    "PC1: %{x:.2f}<br>"
-                    "PC2: %{y:.2f}<br>"
-                    "Island: %{customdata[0]}<br>"
-                    "Sex: %{customdata[1]}"
-                    "<extra></extra>"
-                )
-            )
-
-            fig_cluster = px.scatter(
-                df_viz,
-                x="PC1",
-                y="PC2",
-                color="Cluster",
-                hover_name="species",
-                custom_data=["island", "sex_display"],
-                labels={
-                    "PC1": "Principal Component 1",
-                    "PC2": "Principal Component 2",
-                    "Cluster": "Cluster",
-                    "island": "Island",
-                    "sex_display": "Sex",
-                },
-                category_orders={"Cluster": cluster_order},
-                color_discrete_map=CLUSTER_COLOR_MAP,
-            )
-            fig_cluster = apply_fig_style(fig_cluster)
-            fig_cluster.update_layout(legend_title_text="")
-            fig_cluster.update_traces(
-                hovertemplate=(
-                    "<b>%{hovertext}</b><br>"
-                    "Cluster: %{fullData.name}<br>"
-                    "PC1: %{x:.2f}<br>"
-                    "PC2: %{y:.2f}<br>"
-                    "Island: %{customdata[0]}<br>"
-                    "Sex: %{customdata[1]}"
-                    "<extra></extra>"
-                )
-            )
-        else:
-            fig_actual = px.scatter_3d(
-                df_viz,
-                x="PC1",
-                y="PC2",
-                z="PC3",
-                color="species",
-                hover_name="species",
-                custom_data=["island", "sex_display"],
-                labels={
-                    "PC1": "PC1",
-                    "PC2": "PC2",
-                    "PC3": "PC3",
-                    "species": "Species",
-                    "island": "Island",
-                    "sex_display": "Sex",
-                },
-                category_orders={"species": SPECIES_ORDER},
-                color_discrete_map=SPECIES_COLOR_MAP,
-            )
-            fig_actual = apply_fig_style(fig_actual)
-            fig_actual.update_traces(marker={"size": 5, "opacity": 0.8})
-            fig_actual.update_layout(
-                scene_camera={"eye": {"x": 1.8, "y": 1.8, "z": 0.8}},
-                dragmode="orbit",
-                legend_title_text="Species",
-            )
-            fig_actual.update_traces(
-                hovertemplate=(
-                    "<b>%{hovertext}</b><br>"
-                    "PC1: %{x:.2f}<br>"
-                    "PC2: %{y:.2f}<br>"
-                    "PC3: %{z:.2f}<br>"
-                    "Island: %{customdata[0]}<br>"
-                    "Sex: %{customdata[1]}"
-                    "<extra></extra>"
-                )
-            )
-
-            fig_cluster = px.scatter_3d(
-                df_viz,
-                x="PC1",
-                y="PC2",
-                z="PC3",
-                color="Cluster",
-                hover_name="species",
-                custom_data=["island", "sex_display"],
-                labels={
-                    "PC1": "PC1",
-                    "PC2": "PC2",
-                    "PC3": "PC3",
-                    "Cluster": "Cluster",
-                    "island": "Island",
-                    "sex_display": "Sex",
-                },
-                category_orders={"Cluster": cluster_order},
-                color_discrete_map=CLUSTER_COLOR_MAP,
-            )
-            fig_cluster = apply_fig_style(fig_cluster)
-            fig_cluster.update_traces(marker={"size": 5, "opacity": 0.8})
-            fig_cluster.update_layout(
-                scene_camera={"eye": {"x": 1.8, "y": 1.8, "z": 0.8}},
-                dragmode="orbit",
-                legend_title_text="",
-            )
-            fig_cluster.update_traces(
-                hovertemplate=(
-                    "<b>%{hovertext}</b><br>"
-                    "Cluster: %{fullData.name}<br>"
-                    "PC1: %{x:.2f}<br>"
-                    "PC2: %{y:.2f}<br>"
-                    "PC3: %{z:.2f}<br>"
-                    "Island: %{customdata[0]}<br>"
-                    "Sex: %{customdata[1]}"
-                    "<extra></extra>"
-                )
-            )
     return (
         summary,
         fig_species,

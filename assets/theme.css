@@ -90,8 +90,15 @@ hr {
 
 /* Controls (Dropdowns) */
 .ag-controls {
-  max-width: 560px;
+  max-width: 100%;
   margin-left: auto;
+}
+
+/* Let dropdowns flex to available width */
+.ag-controls .dash-dropdown,
+.ag-controls .Select,
+.ag-controls .Select-control {
+  width: 100%;
 }
 
 .ag-controls label {
