@@ -14,6 +14,22 @@ ML_FEATURES = [
     "body_mass_g"
 ]
 
+# Match dashboard palette for consistent storytelling
+SPECIES_COLOR_MAP = {
+    "Adelie": "#60A5FA",
+    "Chinstrap": "#FBBF24",
+    "Gentoo": "#2DD4BF",
+}
+
+SPECIES_ORDER = ["Adelie", "Chinstrap", "Gentoo"]
+
+# Use the same 3-color palette for clusters (cycles when K > 3)
+DASHBOARD_DISCRETE_SEQUENCE = [SPECIES_COLOR_MAP[s] for s in SPECIES_ORDER]
+CLUSTER_COLOR_MAP = {
+    f"Cluster {i}": DASHBOARD_DISCRETE_SEQUENCE[i % len(DASHBOARD_DISCRETE_SEQUENCE)]
+    for i in range(5)
+}
+
 
 def prepare_ml_data(df):
     """Clean and scale data for ML."""
@@ -68,6 +84,8 @@ def run_pca_and_kmeans(df, k=3):
 def create_pca_scatter(df_results, color_by="cluster"):
     """Create a 2D PCA scatter plot."""
     color_col = "species" if color_by == "species" else "cluster"
+    color_map = SPECIES_COLOR_MAP if color_col == "species" else CLUSTER_COLOR_MAP
+    category_orders = {"species": SPECIES_ORDER} if color_col == "species" else None
     fig = px.scatter(
         df_results, x='PC1', y='PC2', 
         color=color_col, 
@@ -75,7 +93,9 @@ def create_pca_scatter(df_results, color_by="cluster"):
         title=f'2D PCA Space: {color_col.capitalize()} vs Species',
         labels={'PC1': 'Principal Component 1', 'PC2': 'Principal Component 2'},
         width=800, height=600,
-        template='plotly_white'
+        template='plotly_white',
+        color_discrete_map=color_map,
+        category_orders=category_orders,
     )
     fig.update_layout(title_x=0.5)
     return fig
@@ -90,9 +110,10 @@ def create_3d_pca_scatter(df_results):
         title='3D PCA Space: Exploring the Extra Dimension',
         labels={'PC1': 'PC1', 'PC2': 'PC2', 'PC3': 'PC3'},
         width=900, height=700,
-        template='plotly_white'
+        template='plotly_white',
+        color_discrete_map=CLUSTER_COLOR_MAP,
     )
-    fig.update_traces(marker={"size": 5, "opacity": 0.8, "line": {"width": 1, "color": "DarkSlateGrey"}})
+    fig.update_traces(marker={"size": 5, "opacity": 0.8})
     fig.update_layout(
         scene_camera={"eye": {"x": 1.8, "y": 1.8, "z": 0.8}},
         dragmode='orbit',
