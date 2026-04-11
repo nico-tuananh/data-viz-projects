@@ -1,9 +1,11 @@
 import dash
 import dash_bootstrap_components as dbc
 from dash import dcc, html, Input, Output
+import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
 from preprocess import load_ml_ready_data
 
 PLOTLY_TEMPLATE = "plotly_white"
@@ -34,9 +36,14 @@ SPECIES_COLOR_MAP = {
 
 SPECIES_ORDER = ["Adelie", "Chinstrap", "Gentoo"]
 
-# Separate palette for clustering (avoid reusing species identity colors)
+# Use the same 3-color palette across the whole dashboard for consistent storytelling
+DASHBOARD_DISCRETE_SEQUENCE = [SPECIES_COLOR_MAP[s] for s in SPECIES_ORDER]
+px.defaults.color_discrete_sequence = DASHBOARD_DISCRETE_SEQUENCE
+
+# Keep clusters in the same palette (cycles when K > 3)
 CLUSTER_COLOR_MAP = {
-    f"Cluster {i}": px.colors.qualitative.Set2[i] for i in range(5)
+    f"Cluster {i}": DASHBOARD_DISCRETE_SEQUENCE[i % len(DASHBOARD_DISCRETE_SEQUENCE)]
+    for i in range(5)
 }
 
 
@@ -143,7 +150,7 @@ header = html.Div(
                                 className="ag-caption mb-0",
                             ),
                         ],
-                        md=6,
+                        md=9,
                     ),
                     dbc.Col(
                         dbc.Row(
@@ -193,7 +200,7 @@ header = html.Div(
                             ],
                             className="g-2",
                         ),
-                        md=6,
+                        md=3,
                         className="ag-controls",
                     ),
                 ],
@@ -401,7 +408,27 @@ content = html.Div(
                 min=2, max=5, step=1, value=3,
                 marks={i: str(i) for i in range(2, 6)}
             )
-        ], className="mb-4"),
+        ], className="mb-3"),
+        html.Div(
+            [
+                html.Label("PCA Projection"),
+                dcc.RadioItems(
+                    id="pca-mode",
+                    options=[
+                        {"label": "2D", "value": "2d"},
+                        {"label": "3D", "value": "3d"},
+                    ],
+                    value="2d",
+                    inline=True,
+                    inputStyle={"marginRight": "6px", "marginLeft": "10px"},
+                ),
+            ],
+            className="mb-2",
+        ),
+        html.P(
+            id="pca-variance-text",
+            className="ag-caption text-center mb-4",
+        ),
         dbc.Row([
             dbc.Col([
                 dbc.Card([
@@ -440,14 +467,16 @@ app.layout = html.Div([
      Output("histogram-chart", "figure"),
      Output("scatter-chart", "figure"),
      Output("narrative-md", "children"),
+    Output("pca-variance-text", "children"),
      Output("ml-actual-chart", "figure"),
      Output("ml-cluster-chart", "figure")],
     [Input("species-filter", "value"),
      Input("island-filter", "value"),
      Input("sex-filter", "value"),
-     Input("kmeans-slider", "value")]
+    Input("kmeans-slider", "value"),
+    Input("pca-mode", "value")]
 )
-def update_dashboard(selected_species, selected_island, selected_sex, n_clusters):
+def update_dashboard(selected_species, selected_island, selected_sex, n_clusters, pca_mode):
     selected_species = selected_species or species_options
     selected_island = selected_island or island_options
     selected_sex = selected_sex or sex_options
@@ -455,7 +484,7 @@ def update_dashboard(selected_species, selected_island, selected_sex, n_clusters
     if not selected_species or not selected_island or not selected_sex:
         empty_msg = dbc.Alert("Please select at least one option for each filter.", color="warning")
         empty = go.Figure()
-        return empty_msg, empty, empty, empty, empty, empty, empty, "", empty, empty
+        return empty_msg, empty, empty, empty, empty, empty, empty, "", "", empty, empty
 
     # Filter the dataframe
     mask = (df_full['species'].isin(selected_species)) & (df_full['island'].isin(selected_island)) & (df_full['sex'].isin(selected_sex))
@@ -465,7 +494,7 @@ def update_dashboard(selected_species, selected_island, selected_sex, n_clusters
     if df.empty:
         empty_msg = dbc.Alert("No data matches the selected filters. Please adjust your selection.", color="warning")
         empty = go.Figure()
-        return empty_msg, empty, empty, empty, empty, empty, empty, "", empty, empty
+        return empty_msg, empty, empty, empty, empty, empty, empty, "", "", empty, empty
 
     # 1. Summary (KPI cards)
     total_penguins = int(len(df))
@@ -767,78 +796,176 @@ def update_dashboard(selected_species, selected_island, selected_sex, n_clusters
         )
         trace.hovertemplate = "%{hovertext}<extra></extra>"
 
-    # 5. ML Clustering
-    if len(df) > n_clusters:
-        kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
-        clusters = kmeans.fit_predict(X_scaled[filtered_indices])
+    # 5. ML Clustering in PCA space (2D / 3D)
+    fig_actual, fig_cluster = go.Figure(), go.Figure()
+    pca_variance_text = ""
+
+    X_subset = X_scaled[filtered_indices]
+    n_components = 3 if str(pca_mode).lower() == "3d" else 2
+    if X_subset.shape[0] >= max(int(n_clusters), n_components):
+        # K-Means (on scaled original features)
+        kmeans = KMeans(n_clusters=int(n_clusters), random_state=42, n_init=10)
+        clusters = kmeans.fit_predict(X_subset)
 
         df_viz = df.copy()
-        df_viz['Cluster'] = [f"Cluster {c}" for c in clusters]
-
+        df_viz["Cluster"] = [f"Cluster {c}" for c in clusters]
         df_viz["sex_display"] = df_viz["sex"].astype(str).str.strip().str.capitalize()
 
-        fig_actual = px.scatter(
-            df_viz,
-            x="flipper_length_mm",
-            y="body_mass_g",
-            color="species",
-            hover_name="species",
-            custom_data=["island", "sex_display"],
-            labels={
-                "flipper_length_mm": "Flipper Length (mm)",
-                "body_mass_g": "Body Mass (g)",
-                "species": "Species",
-                "island": "Island",
-                "sex_display": "Sex",
-            },
-            category_orders={"species": SPECIES_ORDER},
-            color_discrete_map=SPECIES_COLOR_MAP,
-        )
-        fig_actual = apply_fig_style(fig_actual)
-        fig_actual.update_layout(legend_title_text="Species")
-        fig_actual.update_traces(
-            hovertemplate=(
-                "<b>%{hovertext}</b><br>"
-                "Flipper Length: %{x:.0f} mm<br>"
-                "Body Mass: %{y:,.0f} g<br>"
-                "Island: %{customdata[0]}<br>"
-                "Sex: %{customdata[1]}"
-                "<extra></extra>"
-            )
+        # PCA projection (on the same scaled features)
+        pca = PCA(n_components=n_components, random_state=42)
+        X_pca = pca.fit_transform(X_subset)
+
+        df_viz["PC1"] = X_pca[:, 0]
+        df_viz["PC2"] = X_pca[:, 1]
+        if n_components == 3:
+            df_viz["PC3"] = X_pca[:, 2]
+
+        retained = float(np.sum(pca.explained_variance_ratio_)) * 100
+        pca_variance_text = (
+            f"Using {n_components}D PCA, the projection retains {retained:.1f}% of the variance "
+            f"from the 4 original measurements."
         )
 
-        fig_cluster = px.scatter(
-            df_viz,
-            x="flipper_length_mm",
-            y="body_mass_g",
-            color="Cluster",
-            hover_name="species",
-            custom_data=["island", "sex_display"],
-            labels={
-                "flipper_length_mm": "Flipper Length (mm)",
-                "body_mass_g": "Body Mass (g)",
-                "Cluster": "Cluster",
-                "island": "Island",
-                "sex_display": "Sex",
-            },
-            category_orders={"Cluster": [f"Cluster {i}" for i in range(n_clusters)]},
-            color_discrete_map=CLUSTER_COLOR_MAP,
-        )
-        fig_cluster = apply_fig_style(fig_cluster)
-        fig_cluster.update_layout(legend_title_text="")
-        fig_cluster.update_traces(
-            hovertemplate=(
-                "<b>%{hovertext}</b><br>"
-                "Cluster: %{fullData.name}<br>"
-                "Flipper Length: %{x:.0f} mm<br>"
-                "Body Mass: %{y:,.0f} g<br>"
-                "Island: %{customdata[0]}<br>"
-                "Sex: %{customdata[1]}"
-                "<extra></extra>"
+        cluster_order = [f"Cluster {i}" for i in range(int(n_clusters))]
+
+        if n_components == 2:
+            fig_actual = px.scatter(
+                df_viz,
+                x="PC1",
+                y="PC2",
+                color="species",
+                hover_name="species",
+                custom_data=["island", "sex_display"],
+                labels={
+                    "PC1": "Principal Component 1",
+                    "PC2": "Principal Component 2",
+                    "species": "Species",
+                    "island": "Island",
+                    "sex_display": "Sex",
+                },
+                category_orders={"species": SPECIES_ORDER},
+                color_discrete_map=SPECIES_COLOR_MAP,
             )
-        )
-    else:
-        fig_actual, fig_cluster = go.Figure(), go.Figure()
+            fig_actual = apply_fig_style(fig_actual)
+            fig_actual.update_layout(legend_title_text="Species")
+            fig_actual.update_traces(
+                hovertemplate=(
+                    "<b>%{hovertext}</b><br>"
+                    "PC1: %{x:.2f}<br>"
+                    "PC2: %{y:.2f}<br>"
+                    "Island: %{customdata[0]}<br>"
+                    "Sex: %{customdata[1]}"
+                    "<extra></extra>"
+                )
+            )
+
+            fig_cluster = px.scatter(
+                df_viz,
+                x="PC1",
+                y="PC2",
+                color="Cluster",
+                hover_name="species",
+                custom_data=["island", "sex_display"],
+                labels={
+                    "PC1": "Principal Component 1",
+                    "PC2": "Principal Component 2",
+                    "Cluster": "Cluster",
+                    "island": "Island",
+                    "sex_display": "Sex",
+                },
+                category_orders={"Cluster": cluster_order},
+                color_discrete_map=CLUSTER_COLOR_MAP,
+            )
+            fig_cluster = apply_fig_style(fig_cluster)
+            fig_cluster.update_layout(legend_title_text="")
+            fig_cluster.update_traces(
+                hovertemplate=(
+                    "<b>%{hovertext}</b><br>"
+                    "Cluster: %{fullData.name}<br>"
+                    "PC1: %{x:.2f}<br>"
+                    "PC2: %{y:.2f}<br>"
+                    "Island: %{customdata[0]}<br>"
+                    "Sex: %{customdata[1]}"
+                    "<extra></extra>"
+                )
+            )
+        else:
+            fig_actual = px.scatter_3d(
+                df_viz,
+                x="PC1",
+                y="PC2",
+                z="PC3",
+                color="species",
+                hover_name="species",
+                custom_data=["island", "sex_display"],
+                labels={
+                    "PC1": "PC1",
+                    "PC2": "PC2",
+                    "PC3": "PC3",
+                    "species": "Species",
+                    "island": "Island",
+                    "sex_display": "Sex",
+                },
+                category_orders={"species": SPECIES_ORDER},
+                color_discrete_map=SPECIES_COLOR_MAP,
+            )
+            fig_actual = apply_fig_style(fig_actual)
+            fig_actual.update_traces(marker={"size": 5, "opacity": 0.8})
+            fig_actual.update_layout(
+                scene_camera={"eye": {"x": 1.8, "y": 1.8, "z": 0.8}},
+                dragmode="orbit",
+                legend_title_text="Species",
+            )
+            fig_actual.update_traces(
+                hovertemplate=(
+                    "<b>%{hovertext}</b><br>"
+                    "PC1: %{x:.2f}<br>"
+                    "PC2: %{y:.2f}<br>"
+                    "PC3: %{z:.2f}<br>"
+                    "Island: %{customdata[0]}<br>"
+                    "Sex: %{customdata[1]}"
+                    "<extra></extra>"
+                )
+            )
+
+            fig_cluster = px.scatter_3d(
+                df_viz,
+                x="PC1",
+                y="PC2",
+                z="PC3",
+                color="Cluster",
+                hover_name="species",
+                custom_data=["island", "sex_display"],
+                labels={
+                    "PC1": "PC1",
+                    "PC2": "PC2",
+                    "PC3": "PC3",
+                    "Cluster": "Cluster",
+                    "island": "Island",
+                    "sex_display": "Sex",
+                },
+                category_orders={"Cluster": cluster_order},
+                color_discrete_map=CLUSTER_COLOR_MAP,
+            )
+            fig_cluster = apply_fig_style(fig_cluster)
+            fig_cluster.update_traces(marker={"size": 5, "opacity": 0.8})
+            fig_cluster.update_layout(
+                scene_camera={"eye": {"x": 1.8, "y": 1.8, "z": 0.8}},
+                dragmode="orbit",
+                legend_title_text="",
+            )
+            fig_cluster.update_traces(
+                hovertemplate=(
+                    "<b>%{hovertext}</b><br>"
+                    "Cluster: %{fullData.name}<br>"
+                    "PC1: %{x:.2f}<br>"
+                    "PC2: %{y:.2f}<br>"
+                    "PC3: %{z:.2f}<br>"
+                    "Island: %{customdata[0]}<br>"
+                    "Sex: %{customdata[1]}"
+                    "<extra></extra>"
+                )
+            )
     return (
         summary,
         fig_species,
@@ -848,6 +975,7 @@ def update_dashboard(selected_species, selected_island, selected_sex, n_clusters
         fig_hist,
         fig_scatter,
         narrative_md,
+        pca_variance_text,
         fig_actual,
         fig_cluster,
     )

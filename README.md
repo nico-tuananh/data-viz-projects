@@ -55,3 +55,34 @@ Palmer Penguins dataset, suitable for exploring classification, relationships, a
 - Technical Rigor: Technology choices justification and source code documentation
 - Accessibility & Interactivity: Design considerations with clear purpose and technical rigor
 - Design Iteration: Previous versions/designs with down-selection evidence of critical design elements
+
+## Running Instructions
+
+### Requirements
+- Python 3.10+ recommended
+
+### 1) Install dependencies
+Create and activate a virtual environment, then install packages:
+
+```bash
+python -m venv .venv
+# Windows PowerShell
+.\\.venv\\Scripts\\Activate.ps1
+
+pip install -r requirements.txt
+```
+
+### 2) Run the dashboard
+
+```bash
+python dashboard.py
+```
+
+Then open `http://127.0.0.1:8050/` in your browser.
+
+### (Optional) Regenerate the processed dataset
+If you want to export the cleaned dataset with derived features:
+
+```bash
+python preprocess.py
+```
