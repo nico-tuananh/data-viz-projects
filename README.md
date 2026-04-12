@@ -16,29 +16,25 @@
 
 ## Specifications
 
+### Project Overview
+
+This project is an interactive data visualization dashboard built with the Palmer Penguins dataset. It explores penguin species through habitat distribution, physical measurement comparisons, and machine learning-based pattern discovery.
+
+### What the Dashboard Shows
+
+- Species distribution across islands
+- Physical differences in bill size, flipper length, and body mass
+- Interactive filtering by species, island, and sex
+- Text-based narrative guidance for clearer storytelling
+- PCA and K-Means clustering to compare unsupervised patterns with actual species groups
+
 ### Dataset
-Palmer Penguins dataset, suitable for exploring classification, relationships, and distributions.
 
-### Technical Requirements
+The dashboard uses the Palmer Penguins dataset, which contains penguin species, island, sex, and body measurement features.
 
-**Data Preparation**
-- Implementation of a clear data preprocessing pipeline
-- Handling of missing values, filtering, and data aggregation
+### Project Goal
 
-**Core Visualizations**
-- Foundational charts (scatter plots, bar charts, distributions) exploring physical attributes of penguin species across islands
-
-**Text Visualization**
-- Advanced annotations, dynamic markdown summaries, or visual guides
-- Integration of text elements to support data storytelling
-
-**Interactive & Dynamic Elements**
-- Data filtering capabilities (by species, island, or sex)
-- Dynamic updates through hover effects, dropdowns, or sliders
-
-**Machine Learning Integration**
-- At least one visualization highlighting ML concepts
-- Examples: K-Means clustering visualization or PCA plot for dimensionality reduction
+The goal of the project is to combine visual analysis, interactivity, and storytelling into a dashboard that helps users understand both the biological differences and the hidden structure within the penguin data.
 
 ## Running Instructions
 
