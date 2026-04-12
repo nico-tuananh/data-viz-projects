@@ -42,12 +42,12 @@ SPECIES_ORDER = ["Adelie", "Chinstrap", "Gentoo"]
 DASHBOARD_DISCRETE_SEQUENCE = [SPECIES_COLOR_MAP[s] for s in SPECIES_ORDER]
 px.defaults.color_discrete_sequence = DASHBOARD_DISCRETE_SEQUENCE
 
-# Keep clusters in the same palette (cycles when K > 3)
+# Keep clusters in the same palette
 CLUSTER_COLOR_MAP = {
-    f"Cluster {i}": DASHBOARD_DISCRETE_SEQUENCE[i % len(DASHBOARD_DISCRETE_SEQUENCE)]
-    for i in range(5)
+    "Cluster 0": "#60A5FA",
+    "Cluster 1": "#2DD4BF",
+    "Cluster 2": "#FBBF24",
 }
-
 
 def capitalize_first_letter(text: str) -> str:
     value = str(text).strip()
@@ -462,17 +462,17 @@ def _box_fig(df, value_col: str, y_label: str, value_format: str, unit: str) -> 
     return fig
 
 
-def _ml_pca_figs(df, filtered_indices: np.ndarray, n_clusters: int, pca_mode: str):
+def _ml_pca_figs(df, filtered_indices: np.ndarray, pca_mode: str):
     # Builds the "Actual" and "Cluster" PCA charts.
     fig_actual, fig_cluster = go.Figure(), go.Figure()
     pca_variance_text = ""
 
     X_subset = X_scaled[filtered_indices]
     n_components = 3 if str(pca_mode).lower() == "3d" else 2
-    if X_subset.shape[0] < max(int(n_clusters), n_components):
+    if X_subset.shape[0] < max(3, n_components):
         return fig_actual, fig_cluster, pca_variance_text
 
-    kmeans = KMeans(n_clusters=int(n_clusters), random_state=42, n_init=10)
+    kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
     clusters = kmeans.fit_predict(X_subset)
 
     df_viz = df.copy()
@@ -493,7 +493,7 @@ def _ml_pca_figs(df, filtered_indices: np.ndarray, n_clusters: int, pca_mode: st
         f"from the 4 original measurements."
     )
 
-    cluster_order = [f"Cluster {i}" for i in range(int(n_clusters))]
+    cluster_order = [f"Cluster {i}" for i in range(3)]
 
     if n_components == 2:
         fig_actual = px.scatter(
@@ -925,15 +925,7 @@ content = html.Div(
             ]
         ),
         html.Hr(),
-        html.H3("Machine Learning: K-Means Clustering", className="mb-3"),
-        html.Div([
-            html.Label("Select Number of Clusters (K)"),
-            dcc.Slider(
-                id="kmeans-slider",
-                min=2, max=5, step=1, value=3,
-                marks={i: str(i) for i in range(2, 6)}
-            )
-        ], className="mb-3"),
+        html.H3("Machine Learning: PCA and K-Means Clustering", className="mb-3"),
         html.Div(
             [
                 html.Label("PCA Projection"),
@@ -957,13 +949,13 @@ content = html.Div(
         dbc.Row([
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5("Actual Species Grouping", className="text-center m-0")),
+                    dbc.CardHeader(html.H5("Actual Species in PCA Space", className="text-center m-0")),
                     dbc.CardBody(dcc.Loading(dcc.Graph(id="ml-actual-chart", config=GRAPH_CONFIG, style={"height": "350px"}), type="circle"))
                 ], className="ag-card mb-4")
             ], width=6),
             dbc.Col([
                 dbc.Card([
-                    dbc.CardHeader(html.H5("K-Means Clusters", className="text-center m-0")),
+                    dbc.CardHeader(html.H5("K-Means Clusters in PCA Space", className="text-center m-0")),
                     dbc.CardBody(dcc.Loading(dcc.Graph(id="ml-cluster-chart", config=GRAPH_CONFIG, style={"height": "350px"}), type="circle"))
                 ], className="ag-card mb-4")
             ], width=6)
@@ -998,10 +990,9 @@ app.layout = html.Div([
     [Input("species-filter", "value"),
      Input("island-filter", "value"),
      Input("sex-filter", "value"),
-    Input("kmeans-slider", "value"),
     Input("pca-mode", "value")]
 )
-def update_dashboard(selected_species, selected_island, selected_sex, n_clusters, pca_mode):
+def update_dashboard(selected_species, selected_island, selected_sex, pca_mode):
     selected_species, selected_island, selected_sex = _normalize_filters(
         selected_species, selected_island, selected_sex
     )
@@ -1032,7 +1023,7 @@ def update_dashboard(selected_species, selected_island, selected_sex, n_clusters
 
     # ML charts
     fig_actual, fig_cluster, pca_variance_text = _ml_pca_figs(
-        df, filtered_indices, int(n_clusters), str(pca_mode)
+        df, filtered_indices, str(pca_mode)
     )
     return (
         summary,
