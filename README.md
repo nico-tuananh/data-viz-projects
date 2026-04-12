@@ -45,17 +45,6 @@ Palmer Penguins dataset, suitable for exploring classification, relationships, a
 **Interactive Dashboard**
 - Source code with running instructions
 
-**Presentation**
-- 5-slide deck for 5-minute pitch session
-
-**Engineering Design Report**
-- Vision & Style: Dashboard vision and style choices
-- Data Architecture: Architecture explanation and correctness justification
-- Design Elements: Usage of color, shape, and size in relation to visualization story
-- Technical Rigor: Technology choices justification and source code documentation
-- Accessibility & Interactivity: Design considerations with clear purpose and technical rigor
-- Design Iteration: Previous versions/designs with down-selection evidence of critical design elements
-
 ## Running Instructions
 
 ### Requirements
