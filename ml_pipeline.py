@@ -23,11 +23,11 @@ SPECIES_COLOR_MAP = {
 
 SPECIES_ORDER = ["Adelie", "Chinstrap", "Gentoo"]
 
-# Use the same 3-color palette for clusters (cycles when K > 3)
 DASHBOARD_DISCRETE_SEQUENCE = [SPECIES_COLOR_MAP[s] for s in SPECIES_ORDER]
 CLUSTER_COLOR_MAP = {
-    f"Cluster {i}": DASHBOARD_DISCRETE_SEQUENCE[i % len(DASHBOARD_DISCRETE_SEQUENCE)]
-    for i in range(5)
+    "Cluster 0": SPECIES_COLOR_MAP["Adelie"],
+    "Cluster 1": SPECIES_COLOR_MAP["Chinstrap"],
+    "Cluster 2": SPECIES_COLOR_MAP["Gentoo"],
 }
 
 
@@ -40,8 +40,8 @@ def prepare_ml_data(df):
     return df_ml, X_scaled, scaler
 
 
-def run_pca_and_kmeans(df, k=3):
-    """Run 2D/3D PCA and K-Means clustering."""
+def run_pca_and_kmeans(df):
+    """Run 2D/3D PCA and K-Means clustering with k=3."""
     df_ml, X_scaled, scaler = prepare_ml_data(df)
 
     # 2-Component PCA
@@ -53,7 +53,7 @@ def run_pca_and_kmeans(df, k=3):
     X_pca3 = pca3.fit_transform(X_scaled)
 
     # K-Means
-    kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
+    kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
     cluster_ids = kmeans.fit_predict(X_scaled)
 
     if len(np.unique(cluster_ids)) > 1:
@@ -74,7 +74,6 @@ def run_pca_and_kmeans(df, k=3):
         "total_var_2d": pca2.explained_variance_ratio_.sum(),
         "total_var_3d": pca3.explained_variance_ratio_.sum(),
         "silhouette_score": sil_score,
-        "k": k,
         "X_scaled": X_scaled  # Needed for fingerprints
     }
 
@@ -160,7 +159,7 @@ if __name__ == "__main__":
     from preprocess import load_clean_data
     
     df = load_clean_data()
-    df_results, metrics = run_pca_and_kmeans(df, k=3)
+    df_results, metrics = run_pca_and_kmeans(df)
     
     print(generate_ml_summary_text(df_results, metrics))
     
