@@ -40,11 +40,6 @@ Palmer Penguins dataset, suitable for exploring classification, relationships, a
 - At least one visualization highlighting ML concepts
 - Examples: K-Means clustering visualization or PCA plot for dimensionality reduction
 
-### Deliverables
-
-**Interactive Dashboard**
-- Source code with running instructions
-
 ## Running Instructions
 
 ### Requirements
