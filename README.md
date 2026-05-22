@@ -71,3 +71,12 @@ python preprocess.py
 
 # Project 2: Data Stories: Building Interactive Dashboards with Python Shiny
 
+## Data Collection and Preprocessing
+
+Run the series of commands below:
+```
+cd project2
+pip install -r requirements.txt
+python setup_bigquery.py    # Verify GCP setup
+python data_collection.py   # Run the pipeline
+```
