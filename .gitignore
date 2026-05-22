@@ -1,12 +1,18 @@
-__pycache__/
-*.py[cod]
-*$py.class
-.DS_Store
-.ipynb_checkpoints/
-
 # uv settings
 .venv/
 .python-version
 .vscode
 pyproject.toml
 uv.lock
+
+# Temporary files
+__pycache__/
+*.py[cod]
+*$py.class
+.DS_Store
+.ipynb_checkpoints/
+materials/
+
+# Data files (too large for git)
+project2/data/*.csv
+project2/data/*.parquet
