@@ -84,18 +84,20 @@ python preprocess.py
 3. Create service account at https://console.cloud.google.com/iam-admin/serviceaccounts
    - Name: `gdelt-reader`
    - Roles: `BigQuery Job User`, `BigQuery Data Viewer`
-   - Create JSON key, download and store it to `project2/secrets/gdelt-reader-key.json`
+   - Create JSON key, download and store it to `project2/secrets/`
 
-4. Set environment variables:
+4. Create a `.env` file from the template:
 ```bash
-export GOOGLE_APPLICATION_CREDENTIALS="$(pwd)/project2/secrets/gdelt-reader-key.json"
-export GOOGLE_CLOUD_PROJECT="your-project-id-from-step-1"
+cd project2
+cp .env.example .env
 ```
+   Then edit `.env` to match your JSON file name and actual GCP project ID.
 
 ### Step 2: Run Pipeline
 
 Run the series of commands below:
 ```bash
+cd project2
 pip install -r requirements.txt
 python setup_bigquery.py    # Verify GCP setup
 python data_collection.py   # Run the pipeline
