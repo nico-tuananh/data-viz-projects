@@ -73,10 +73,49 @@ python preprocess.py
 
 ## Data Collection and Preprocessing
 
-Run the series of commands below:
+### Step 1: GCP Setup
+
+1. Create GCP project at https://console.cloud.google.com/projectcreate
+   - Note your project ID (shown below project name, e.g., `comp4010-project-2`)
+   - Or find existing project ID: click project dropdown → copy ID column
+
+2. Enable BigQuery API at https://console.cloud.google.com/apis/library/bigquery.googleapis.com
+
+3. Create service account at https://console.cloud.google.com/iam-admin/serviceaccounts
+   - Name: `gdelt-reader`
+   - Roles: `BigQuery Job User`, `BigQuery Data Viewer`
+   - Create JSON key, download and store it to `project2/secrets/gdelt-reader-key.json`
+
+4. Set environment variables:
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS="$(pwd)/project2/secrets/gdelt-reader-key.json"
+export GOOGLE_CLOUD_PROJECT="your-project-id-from-step-1"
 ```
-cd project2
+
+### Step 2: Run Pipeline
+
+Run the series of commands below:
+```bash
 pip install -r requirements.txt
 python setup_bigquery.py    # Verify GCP setup
 python data_collection.py   # Run the pipeline
 ```
+
+### Step 3: Output Files
+
+The pipeline produces four dashboard-ready datasets in `project2/data/`:
+
+| File | Description |
+|------|-------------|
+| `gdelt_events_cleaned.parquet/csv` | Full cleaned event data with media group labels, event direction, tone categories |
+| `daily_aggregates.parquet/csv` | Daily metrics by media group (event counts, article totals, weighted tone) |
+| `weekly_aggregates.parquet/csv` | Weekly geo-aggregates by country for map visualizations |
+| `tone_gap_series.parquet/csv` | Daily ToneGap (Western − Chinese) for forecasting models |
+
+Key fields in the cleaned dataset:
+- `Date`, `DateStr`, `WeekStr` — Standardized date fields
+- `MediaGroup` — Western, Chinese, or Global/Other
+- `EventDirection` — USA→CHN or CHN→USA
+- `AvgTone`, `GoldsteinScale` — Sentiment metrics
+- `NumArticles`, `NumMentions` — Coverage intensity
+- `SourceDomain` — Extracted source domain for analysis
