@@ -8,10 +8,19 @@ Media Groups: Western Media, Chinese State-Affiliated Media, Global/Other
 
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 from google.cloud import bigquery
 import pandas as pd
 import numpy as np
 from datetime import datetime
+
+load_dotenv(Path(__file__).parent / ".env")
+
+if "GOOGLE_APPLICATION_CREDENTIALS" in os.environ:
+    creds_path = Path(os.environ["GOOGLE_APPLICATION_CREDENTIALS"])
+    if not creds_path.is_absolute():
+        creds_path = (Path(__file__).parent / creds_path).resolve()
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(creds_path)
 
 
 # =============================================================================
@@ -180,7 +189,7 @@ def query_gdelt_events(client: bigquery.Client) -> pd.DataFrame:
     print("Executing BigQuery query (this may take a few minutes)...")
     query_job = client.query(query)
     
-    df = query_job.to_dataframe()
+    df = query_job.to_dataframe(create_bqstorage_client=False)
     print(f"Retrieved {len(df):,} events from GDELT")
     
     return df
