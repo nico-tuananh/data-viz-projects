@@ -16,3 +16,10 @@ materials/
 # Data files (too large for git)
 project2/data/*.csv
 project2/data/*.parquet
+
+# Secrets
+project2/secrets/
+
+# Environment variables
+.env
+project2/.env
