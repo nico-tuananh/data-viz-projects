@@ -2,6 +2,16 @@
 
 import os
 import sys
+from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).parent / ".env")
+
+if "GOOGLE_APPLICATION_CREDENTIALS" in os.environ:
+    creds_path = Path(os.environ["GOOGLE_APPLICATION_CREDENTIALS"])
+    if not creds_path.is_absolute():
+        creds_path = (Path(__file__).parent / creds_path).resolve()
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(creds_path)
 
 
 def check_environment():
@@ -102,13 +112,16 @@ To use BigQuery for GDELT data collection, follow these steps:
    - Grant role: "BigQuery Job User" and "BigQuery Data Viewer"
    - Click "Create Key" → JSON → Download
 
-4. SET ENVIRONMENT VARIABLES
-   Add to your shell profile (~/.zshrc or ~/.bashrc):
+4. CREATE A .env FILE
+   Create a .env file in the project2/ directory:
 
-   export GOOGLE_APPLICATION_CREDENTIALS="/path/to/your-service-account-key.json"
-   export GOOGLE_CLOUD_PROJECT="your-project-id"
+   cd project2
+   cat > .env << 'EOF'
+   GOOGLE_APPLICATION_CREDENTIALS=secrets/gdelt-reader-key.json
+   GOOGLE_CLOUD_PROJECT=your-project-id
+   EOF
 
-   Then run: source ~/.zshrc
+   Replace "your-project-id" with your actual GCP project ID.
 
 5. ALTERNATIVE: Use gcloud CLI
    If you have gcloud CLI installed:
@@ -117,7 +130,12 @@ To use BigQuery for GDELT data collection, follow these steps:
    gcloud config set project YOUR_PROJECT_ID
 
 6. INSTALL PYTHON PACKAGES
+   cd project2
    pip install -r requirements.txt
+
+NOTE: The scripts will automatically load environment variables from your 
+.env file using python-dotenv. You no longer need to manually export them 
+in your terminal - they will persist across sessions.
 
 NOTE: GDELT data in BigQuery is publicly accessible, so you only need
 basic BigQuery permissions. However, queries do incur costs (about $5
