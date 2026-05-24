@@ -2,7 +2,7 @@
 import math
 
 from fastapi import APIRouter, Query
-from backend.data_loader import filter_events, DATE_MIN, DATE_MAX, MEDIA_GROUPS
+from data_loader import filter_events, DATE_MIN, DATE_MAX, MEDIA_GROUPS
 import pandas as pd
 
 router = APIRouter(prefix="/api/summary", tags=["summary"])
