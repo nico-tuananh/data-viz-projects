@@ -3,7 +3,9 @@ from pathlib import Path
 
 import pandas as pd
 
-DATA_DIR = Path(__file__).parent.parent / "data"
+DATA_DIR = Path(__file__).parent / "data"
+if not (DATA_DIR / "gdelt_events_cleaned.parquet").exists():
+    DATA_DIR = Path(__file__).parent.parent / "data"
 
 # Cached DataFrames loaded once at import time
 EVENTS = pd.read_parquet(DATA_DIR / "gdelt_events_cleaned.parquet")

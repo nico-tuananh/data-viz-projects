@@ -1,8 +1,11 @@
-"""FastAPI backend for the GDELT dashboard."""
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent))
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.routers import summary, events, daily, weekly_geo, tone_gap
+from routers import summary, events, daily, weekly_geo, tone_gap
 
 app = FastAPI(title="GDELT Dashboard API")
 

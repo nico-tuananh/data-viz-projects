@@ -2,7 +2,7 @@
 import math
 
 from fastapi import APIRouter, Query
-from backend.data_loader import filter_daily, DATE_MIN, DATE_MAX, MEDIA_GROUPS
+from data_loader import filter_daily, DATE_MIN, DATE_MAX, MEDIA_GROUPS
 
 router = APIRouter(prefix="/api/daily", tags=["daily"])
 
