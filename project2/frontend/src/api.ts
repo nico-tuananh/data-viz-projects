@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const getApiBase = () => {
   if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
+    return import.meta.env.VITE_API_URL.trim();
   }
   // Dynamically target the server's IP/hostname instead of hardcoding localhost
   if (typeof window !== 'undefined' && window.location) {
