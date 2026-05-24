@@ -121,3 +121,26 @@ Key fields in the cleaned dataset:
 - `AvgTone`, `GoldsteinScale` — Sentiment metrics
 - `NumArticles`, `NumMentions` — Coverage intensity
 - `SourceDomain` — Extracted source domain for analysis
+
+
+### Step 4: Run the Application (FastAPI & React)
+
+After completing the data collection pipeline, start the backend and frontend servers:
+
+#### 1) Run the Backend (FastAPI)
+Navigate to the `project2` directory, activate the virtual environment, and launch the Uvicorn server:
+```bash
+cd project2
+source .venv/bin/activate
+PYTHONPATH=. uvicorn backend.main:app --host 0.0.0.0 --port 8002 --reload
+```
+The backend API will start on port `8002`. You can check the server health status at `http://localhost:8002/api/health`.
+
+#### 2) Run the Frontend (React + Vite)
+Open a new terminal window, navigate to the frontend directory, install dependencies, and start the dev server:
+```bash
+cd project2/frontend
+npm install
+npm run dev -- --host 0.0.0.0 --port 5173
+```
+The frontend dev server will launch on port `5173`. Open `http://localhost:5173/` in your browser to view the dashboard.
