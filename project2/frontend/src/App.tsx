@@ -7,6 +7,8 @@ import TimelineChart from './components/TimelineChart';
 import ToneGapChart from './components/ToneGapChart';
 import DistributionChart from './components/DistributionChart';
 import BubbleChart from './components/BubbleChart';
+import KeywordFramingChart from './components/KeywordFramingChart';
+import WordCloudSection from './components/WordCloudSection';
 
 function Dashboard() {
   const { theme, toggleTheme } = useTheme();
@@ -57,6 +59,22 @@ function Dashboard() {
           <DistributionChart />
           <BubbleChart />
         </div>
+
+        {/* Tab 4: Keyword Framing — Which words did each side use to frame the conflict? */}
+        <section className="mt-8">
+          <div className="flex flex-wrap items-baseline gap-3 mb-5 pb-3 border-b border-border">
+            <h2 className="font-mono text-subhead font-bold tracking-wide text-text-primary">
+              Keyword Framing
+            </h2>
+            <p className="text-text-muted text-body-small">
+              Which words did each side use to frame the conflict?
+            </p>
+          </div>
+          <div className="flex flex-col gap-6">
+            <KeywordFramingChart />
+            <WordCloudSection />
+          </div>
+        </section>
 
         <footer className="mt-8 pt-4 border-t border-border text-text-muted text-caption">
           Data sourced from GDELT Project. Dashboard styled with CoinPulse Design System. Built with FastAPI + React + Leaflet + Plotly.
