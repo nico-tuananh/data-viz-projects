@@ -1,0 +1,5 @@
+model,mae,rmse,details
+TimesFM,1.7250618447087458,2.053205332623613,"checkpoint=google/timesfm-2.5-200m-pytorch, test_size=14"
+ARIMA,1.686868031154458,2.1741119532640343,"order=(3, 1, 3), test_size=14"
+Prophet,1.9772995092989814,2.4160528496969875,"weekly_seasonality=True, test_size=14"
+HoltWinters,1.9900664066976532,2.4417872416249953,"trend=add, seasonal=add, seasonal_periods=7, test_size=14"

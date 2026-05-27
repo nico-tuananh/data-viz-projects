@@ -5,11 +5,12 @@
 @tailwind utilities;
 
 :root {
-  --color-bg: #F4F4F5;
+  /* Warm newsprint white for light mode */
+  --color-bg: #F5F5F0;
   --color-surface: #FFFFFF;
-  --color-surface-elevated: #E4E4E7;
-  --color-border: #E4E4E7;
-  --color-border-elevated: #D4D4D8;
+  --color-surface-elevated: #EBEBEB;
+  --color-border: #E0E0DC;
+  --color-border-elevated: #CECEC8;
   --color-text-primary: #09090B;
   --color-text-secondary: #52525B;
   --color-text-muted: #71717A;
@@ -21,14 +22,15 @@
 }
 
 .dark {
-  --color-bg: #09090B;
-  --color-surface: #18181B;
-  --color-surface-elevated: #27272A;
-  --color-border: #27272A;
-  --color-border-elevated: #3F3F46;
-  --color-text-primary: #FAFAFA;
-  --color-text-secondary: #A1A1AA;
-  --color-text-muted: #71717A;
+  /* Dark ink base for newsprint dark mode */
+  --color-bg: #111318;
+  --color-surface: rgba(22, 24, 32, 0.92);
+  --color-surface-elevated: rgba(32, 34, 46, 0.96);
+  --color-border: rgba(52, 55, 72, 0.80);
+  --color-border-elevated: rgba(70, 74, 96, 0.85);
+  --color-text-primary: #F0EFE8;
+  --color-text-secondary: #A8A89E;
+  --color-text-muted: #6E6E66;
   --shadow-glow-subtle: 0 0 8px rgba(37, 99, 235, 0.15);
   --shadow-glow-medium: 0 0 16px rgba(37, 99, 235, 0.25);
   --shadow-glow-large: 0 0 24px rgba(37, 99, 235, 0.35);
@@ -36,13 +38,53 @@
   --shadow-glow-loss: 0 0 12px rgba(239, 68, 68, 0.30);
 }
 
+/* ─── Light mode: warm newsprint + very faint column-rule + tinted spotlights ── */
 body {
   background-color: var(--color-bg);
+  background-image:
+    radial-gradient(ellipse 65% 55% at 6% 52%, rgba(37, 99, 235, 0.05) 0%, transparent 100%),
+    radial-gradient(ellipse 48% 42% at 94% 22%, rgba(220, 38, 38, 0.04) 0%, transparent 100%),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px, transparent 3px,
+      rgba(0, 0, 0, 0.018) 3px, rgba(0, 0, 0, 0.018) 4px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px, transparent 79px,
+      rgba(0, 0, 0, 0.012) 79px, rgba(0, 0, 0, 0.012) 80px
+    );
+  background-attachment: fixed;
   color: var(--color-text-primary);
   font-family: 'DM Sans', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ─── Dark mode: dark ink + scanlines + blue (Western) and red (China) spotlights ── */
+.dark body {
+  background-image:
+    radial-gradient(ellipse 68% 58% at 6% 52%, rgba(37, 99, 235, 0.17) 0%, transparent 100%),
+    radial-gradient(ellipse 52% 46% at 94% 22%, rgba(220, 38, 38, 0.12) 0%, transparent 100%),
+    radial-gradient(ellipse 38% 45% at 52% 98%, rgba(37, 99, 235, 0.07) 0%, transparent 100%),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px, transparent 2px,
+      rgba(255, 255, 255, 0.016) 2px, rgba(255, 255, 255, 0.016) 3px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px, transparent 79px,
+      rgba(255, 255, 255, 0.008) 79px, rgba(255, 255, 255, 0.008) 80px
+    );
+  background-attachment: fixed;
+}
+
+/* ─── Dark mode glass cards: semi-transparent so bg bleeds through ──────────── */
+.dark .bg-surface {
+  backdrop-filter: blur(6px) saturate(110%);
+  -webkit-backdrop-filter: blur(6px) saturate(110%);
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -137,18 +179,26 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Premium Leaflet Tooltip overrides to match CoinPulse Design System */
 .custom-map-tooltip.leaflet-tooltip {
-  background-color: var(--color-surface) !important;
+  background-color: #FFFFFF !important;
   color: var(--color-text-primary) !important;
   border: 1px solid var(--color-border-elevated) !important;
   border-radius: 8px !important;
   padding: 8px 12px !important;
   box-shadow: var(--shadow-glow-subtle) !important;
   font-family: 'DM Sans', sans-serif !important;
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.dark .custom-map-tooltip.leaflet-tooltip {
+  background-color: #1A1C26 !important;
 }
 
 .custom-map-tooltip.leaflet-tooltip::before {
-  border-top-color: var(--color-surface) !important;
+  border-top-color: #FFFFFF !important;
+}
+
+.dark .custom-map-tooltip.leaflet-tooltip::before {
+  border-top-color: #1A1C26 !important;
 }
 
 .custom-tooltip-content {

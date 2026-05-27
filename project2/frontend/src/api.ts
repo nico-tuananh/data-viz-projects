@@ -123,4 +123,63 @@ export async function getToneGap(params: FilterParams) {
   return res.data;
 }
 
+export interface SourceMapResponse {
+  count: number;
+  records: Array<{
+    source_country: string;
+    source_lat: number;
+    source_lon: number;
+    MediaGroup: string;
+    TotalEvents: number;
+    TotalArticles: number;
+    AvgTone: number;
+    UniqueDomains: number;
+  }>;
+}
+
+export async function getSourceMap(params: FilterParams) {
+  const res = await api.get<SourceMapResponse>('/source-map', { params: buildParams(params) });
+  return res.data;
+}
+
+// --- Tab 4: Keyword Framing ---
+
+export interface KeywordEntry {
+  keyword: string;
+  tfidf_score: number;
+  doc_count: number;
+}
+
+export interface KeywordsResponse {
+  topN: number;
+  groups: {
+    Western: KeywordEntry[];
+    Chinese: KeywordEntry[];
+  };
+}
+
+export interface WordCloudEntry {
+  word: string;
+  weight: number;
+  count: number;
+  type?: 'unigram' | 'bigram' | 'trigram';
+}
+
+export interface WordCloudResponse {
+  groups: {
+    Western: WordCloudEntry[];
+    Chinese: WordCloudEntry[];
+  };
+}
+
+export async function getKeywords(topN: number = 20) {
+  const res = await api.get<KeywordsResponse>('/keywords', { params: { top_n: topN } });
+  return res.data;
+}
+
+export async function getWordCloud(topN: number = 50) {
+  const res = await api.get<WordCloudResponse>('/wordcloud', { params: { top_n: topN } });
+  return res.data;
+}
+
 export default api;

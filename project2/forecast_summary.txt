@@ -1,0 +1,12 @@
+Forecast evaluation summary
+Input series: /Users/anthe/Documents/Data Vis/Project 1/data-viz-projects/project2/data/tone_gap_series.csv
+Rows: 89 | Missing ToneGap values imputed: 11
+Train rows: 75 | Test rows: 14
+
+TimesFM: MAE=1.7251, RMSE=2.0532 (checkpoint=google/timesfm-2.5-200m-pytorch, test_size=14)
+ARIMA: MAE=1.6869, RMSE=2.1741 (order=(3, 1, 3), test_size=14)
+Prophet: MAE=1.9773, RMSE=2.4161 (weekly_seasonality=True, test_size=14)
+HoltWinters: MAE=1.9901, RMSE=2.4418 (trend=add, seasonal=add, seasonal_periods=7, test_size=14)
+
+TimesFM: completed.
+Prophet: completed.
