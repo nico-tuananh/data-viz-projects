@@ -1,5 +1,7 @@
 [build]
 builder = "nixpacks"
+# IMPORTANT: Set Railway service Root Directory to "project2" (not "project2/backend")
+# This ensures both the backend/ and model/ folders are available at deploy time.
 
 [deploy]
 startCommand = "cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT"
