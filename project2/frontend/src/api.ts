@@ -134,11 +134,56 @@ export interface SourceMapResponse {
     TotalArticles: number;
     AvgTone: number;
     UniqueDomains: number;
+    TopDomains?: string;
   }>;
 }
 
 export async function getSourceMap(params: FilterParams) {
   const res = await api.get<SourceMapResponse>('/source-map', { params: buildParams(params) });
+  return res.data;
+}
+
+// --- Forecast Evaluation ---
+
+export interface ForecastMetricsResponse {
+  models: Array<{
+    name: string;
+    mae: number;
+    rmse: number;
+    details: string;
+  }>;
+}
+
+export interface ForecastEvaluationResponse {
+  fullSeries: Array<{ date: string; toneGap: number | null }>;
+  predictions: Array<{
+    model: string;
+    dates: string[];
+    predicted: number[];
+  }>;
+  trainCutoff: string | null;
+  metrics: ForecastMetricsResponse;
+}
+
+export async function getForecastMetrics() {
+  const res = await api.get<ForecastMetricsResponse>('/forecast/metrics');
+  return res.data;
+}
+
+export async function getForecastEvaluation() {
+  const res = await api.get<ForecastEvaluationResponse>('/forecast/evaluation');
+  return res.data;
+}
+
+export async function regenerateForecast() {
+  const res = await api.post<{ status: string }>('/forecast/regenerate');
+  return res.data;
+}
+
+// --- Data Refresh ---
+
+export async function refreshData() {
+  const res = await api.post<{ status: string }>('/data/refresh');
   return res.data;
 }
 

@@ -59,7 +59,7 @@ export default function KeywordFramingChart() {
       orientation: 'h',
       name: 'Western',
       marker: { color: '#2563EB', opacity: 0.85 },
-      hovertemplate: '<b>%{y}</b><br>Western TF-IDF: %{x:.4f}<extra></extra>',
+      hovertemplate: '<b>%{y}</b><br>Western TF-IDF: <b>%{x:.4f}</b><extra></extra>',
     };
 
     const chineseTrace: any = {
@@ -70,7 +70,7 @@ export default function KeywordFramingChart() {
       name: 'Chinese',
       marker: { color: '#EF4444', opacity: 0.85 },
       customdata: sorted.map((d) => d.c),
-      hovertemplate: '<b>%{y}</b><br>Chinese TF-IDF: %{customdata:.4f}<extra></extra>',
+      hovertemplate: '<b>%{y}</b><br>Chinese TF-IDF: <b>%{customdata:.4f}</b><extra></extra>',
     };
 
     const maxScore = Math.max(...wScores, ...cScores.map(Math.abs)) * 1.15;
@@ -106,6 +106,17 @@ export default function KeywordFramingChart() {
           x: 0.5,
           xanchor: 'center',
           font: { color: textColor, size: 12 },
+        },
+        hovermode: 'closest' as const,
+        hoverlabel: {
+          bgcolor: theme === 'dark' ? '#18181b' : '#ffffff',
+          bordercolor: theme === 'dark' ? '#27272a' : '#e4e4e7',
+          font: {
+            family: 'DM Sans, sans-serif',
+            size: 12,
+            color: theme === 'dark' ? '#fafafa' : '#09090b',
+          },
+          align: 'left' as const,
         },
       },
       { responsive: true, displayModeBar: false }

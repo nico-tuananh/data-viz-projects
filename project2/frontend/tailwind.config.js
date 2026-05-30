@@ -25,6 +25,16 @@ export default {
         'text-primary': 'var(--color-text-primary)',
         'text-secondary': 'var(--color-text-secondary)',
         'text-muted': 'var(--color-text-muted)',
+        
+        // Shadcn / mapcn mappings
+        background: 'var(--color-bg)',
+        foreground: 'var(--color-text-primary)',
+        popover: 'var(--color-surface)',
+        'popover-foreground': 'var(--color-text-primary)',
+        muted: 'var(--color-surface-elevated)',
+        'muted-foreground': 'var(--color-text-muted)',
+        accent: 'var(--color-surface-elevated)',
+        'accent-foreground': 'var(--color-text-primary)',
       },
       fontFamily: {
         mono: ['"Space Mono"', 'monospace'],

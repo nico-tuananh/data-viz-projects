@@ -32,6 +32,7 @@ export default function ToneGapChart() {
       mode: 'lines' as const,
       line: { color: '#2563EB', width: 2 },
       name: 'Western Tone',
+      hovertemplate: '%{fullData.name}: <b>%{y:.3f}</b><extra></extra>',
     };
 
     const chineseTrace = {
@@ -40,6 +41,7 @@ export default function ToneGapChart() {
       mode: 'lines' as const,
       line: { color: '#EF4444', width: 2 },
       name: 'Chinese Tone',
+      hovertemplate: '%{fullData.name}: <b>%{y:.3f}</b><extra></extra>',
     };
 
     const gapTrace = {
@@ -50,6 +52,7 @@ export default function ToneGapChart() {
       line: { color: '#84CC16', width: 2 }, // CoinPulse Secondary Lime indicator
       fillcolor: 'rgba(132, 204, 22, 0.15)', // Lime at 15% opacity
       name: 'Tone Gap',
+      hovertemplate: '%{fullData.name}: <b>%{y:.3f}</b><extra></extra>',
     };
 
     const textColor = theme === 'dark' ? '#A1A1AA' : '#52525B';
@@ -75,6 +78,7 @@ export default function ToneGapChart() {
         gridcolor: gridColor,
         zerolinecolor: gridColor,
         tickfont: { color: textColor },
+        hoverformat: '%b %d, %Y',
       },
       yaxis: {
         title: { text: 'AvgTone', font: { color: labelColor, size: 12 } },
@@ -89,7 +93,17 @@ export default function ToneGapChart() {
         xanchor: 'center' as const,
         font: { color: textColor },
       },
-      hovermode: 'closest' as const,
+      hovermode: 'x unified' as const,
+      hoverlabel: {
+        bgcolor: theme === 'dark' ? '#18181b' : '#ffffff',
+        bordercolor: theme === 'dark' ? '#27272a' : '#e4e4e7',
+        font: {
+          family: 'DM Sans, sans-serif',
+          size: 12,
+          color: theme === 'dark' ? '#fafafa' : '#09090b',
+        },
+        align: 'left' as const,
+      },
     }, {
       responsive: true,
       displayModeBar: false,

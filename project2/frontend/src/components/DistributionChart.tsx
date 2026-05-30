@@ -68,6 +68,16 @@ export default function DistributionChart() {
         tickfont: { color: textColor },
       },
       hovermode: 'closest' as const,
+      hoverlabel: {
+        bgcolor: theme === 'dark' ? '#18181b' : '#ffffff',
+        bordercolor: theme === 'dark' ? '#27272a' : '#e4e4e7',
+        font: {
+          family: 'DM Sans, sans-serif',
+          size: 12,
+          color: theme === 'dark' ? '#fafafa' : '#09090b',
+        },
+        align: 'left' as const,
+      },
     }, {
       responsive: true,
       displayModeBar: false,
