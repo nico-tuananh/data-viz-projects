@@ -7,6 +7,8 @@ Media Groups: Western Media, Chinese State-Affiliated Media, Global/Other
 """
 
 import os
+import json
+import tempfile
 from pathlib import Path
 from dotenv import load_dotenv
 from google.cloud import bigquery
@@ -17,7 +19,23 @@ from datetime import datetime
 # .env lives one directory up (in project2/), not in backend/
 load_dotenv(Path(__file__).parent.parent / ".env")
 
-if "GOOGLE_APPLICATION_CREDENTIALS" in os.environ:
+# Support Railway-style JSON credentials in env var (GOOGLE_APPLICATION_CREDENTIALS_JSON)
+# Takes priority over file-based GOOGLE_APPLICATION_CREDENTIALS
+_creds_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
+if _creds_json:
+    try:
+        _creds_data = json.loads(_creds_json)
+        _tmp = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False, encoding="utf-8"
+        )
+        json.dump(_creds_data, _tmp)
+        _tmp.flush()
+        _tmp.close()
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = _tmp.name
+        print(f"[credentials] Loaded from GOOGLE_APPLICATION_CREDENTIALS_JSON -> {_tmp.name}")
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"[credentials] WARNING: Failed to parse GOOGLE_APPLICATION_CREDENTIALS_JSON: {e}")
+elif "GOOGLE_APPLICATION_CREDENTIALS" in os.environ:
     creds_path = Path(os.environ["GOOGLE_APPLICATION_CREDENTIALS"])
     if not creds_path.is_absolute():
         # Resolve relative to the project root (project2/)
