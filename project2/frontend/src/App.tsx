@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { FiltersProvider } from './hooks/useFilters';
 import { ThemeProvider, useTheme } from './hooks/useTheme';
+import { refreshData } from './api';
 import Sidebar from './components/Sidebar';
 import SummaryCards from './components/SummaryCards';
 import MapSection from './components/MapSection';
@@ -7,16 +9,47 @@ import TimelineChart from './components/TimelineChart';
 import ToneGapChart from './components/ToneGapChart';
 import DistributionChart from './components/DistributionChart';
 import BubbleChart from './components/BubbleChart';
+import ForecastMetricsCard from './components/ForecastMetricsCard';
+import ForecastChart from './components/ForecastChart';
 import KeywordFramingChart from './components/KeywordFramingChart';
 import WordCloudSection from './components/WordCloudSection';
 
 function Dashboard() {
   const { theme, toggleTheme } = useTheme();
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedModels, setSelectedModels] = useState<string[]>([
+    'ARIMA',
+    'HoltWinters',
+    'Prophet',
+    'TimesFM',
+  ]);
+
+  const handleToggleModel = (modelName: string) => {
+    setSelectedModels((prev) =>
+      prev.includes(modelName)
+        ? prev.filter((m) => m !== modelName)
+        : [...prev, modelName]
+    );
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshData();
+      alert('Data refresh started in the background. Reload the page in a few minutes to see updated data.');
+    } catch (err) {
+      console.error('Refresh failed:', err);
+      alert('Failed to start data refresh.');
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   return (
     <div className="flex min-h-screen bg-bg text-text-primary">
       <Sidebar />
-      <main className="flex-1 p-6 overflow-y-auto transition-all duration-300">
+      <main className="flex-1 overflow-y-auto transition-all duration-300">
+        <div className="max-w-[1700px] mx-auto w-full p-6">
         <header className="flex justify-between items-center mb-6 pb-4 border-b border-border">
           <div>
             <h1 className="text-headline text-text-primary mb-1">
@@ -26,12 +59,37 @@ function Dashboard() {
               Narrative Asymmetry in the 2025 US–China Tariff Conflict
             </p>
           </div>
-          
-          <button
-            onClick={toggleTheme}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-elevated hover:shadow-glow-subtle hover:border-border-elevated transition-all text-xs font-semibold uppercase tracking-wider cursor-pointer"
-            title="Toggle theme"
-          >
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-elevated hover:shadow-glow-subtle hover:border-border-elevated transition-all text-xs font-semibold uppercase tracking-wider cursor-pointer disabled:opacity-50"
+              title="Fetch latest GDELT data from BigQuery"
+            >
+              {refreshing ? (
+                <>
+                  <svg className="animate-spin h-3 w-3 text-primary" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Refreshing...
+                </>
+              ) : (
+                <>
+                  <svg className="w-3 h-3 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Refresh Data
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={toggleTheme}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-elevated hover:shadow-glow-subtle hover:border-border-elevated transition-all text-xs font-semibold uppercase tracking-wider cursor-pointer"
+              title="Toggle theme"
+            >
             {theme === 'dark' ? (
               <>
                 <svg className="w-4 h-4 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -48,6 +106,7 @@ function Dashboard() {
               </>
             )}
           </button>
+          </div>
         </header>
 
         <SummaryCards />
@@ -76,9 +135,33 @@ function Dashboard() {
           </div>
         </section>
 
+        {/* Forecast Evaluation */}
+        <section className="mt-8">
+          <div className="flex flex-wrap items-baseline gap-3 mb-5 pb-3 border-b border-border">
+            <h2 className="font-mono text-subhead font-bold tracking-wide text-text-primary">
+              Forecast Evaluation
+            </h2>
+            <p className="text-text-muted text-body-small">
+              Model predictions on 14-day holdout overlay on full Feb–Apr series
+            </p>
+          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <div className="xl:col-span-1">
+              <ForecastMetricsCard
+                selectedModels={selectedModels}
+                onToggleModel={handleToggleModel}
+              />
+            </div>
+            <div className="xl:col-span-2">
+              <ForecastChart selectedModels={selectedModels} />
+            </div>
+          </div>
+        </section>
+
         <footer className="mt-8 pt-4 border-t border-border text-text-muted text-caption">
           Data sourced from GDELT Project. Dashboard styled with CoinPulse Design System. Built with FastAPI + React + Leaflet + Plotly.
         </footer>
+        </div>
       </main>
     </div>
   );

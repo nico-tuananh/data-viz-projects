@@ -206,3 +206,58 @@ h1, h2, h3, h4, h5, h6 {
   flex-direction: column;
   gap: 2px;
 }
+
+/* Custom Cluster Marker Styles */
+.custom-cluster-marker {
+  background: transparent !important;
+  border: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* MapLibre Popup Overrides */
+.maplibregl-popup-content {
+  background-color: var(--color-surface) !important;
+  color: var(--color-text-primary) !important;
+  border: 1px solid var(--color-border-elevated) !important;
+  border-radius: 8px !important;
+  padding: 8px 12px !important;
+  box-shadow: var(--shadow-glow-subtle) !important;
+  font-family: 'DM Sans', sans-serif !important;
+  backdrop-filter: blur(6px) saturate(110%);
+  -webkit-backdrop-filter: blur(6px) saturate(110%);
+}
+
+.maplibregl-popup-anchor-top .maplibregl-popup-tip {
+  border-bottom-color: var(--color-surface) !important;
+}
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip {
+  border-top-color: var(--color-surface) !important;
+}
+.maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: var(--color-surface) !important;
+}
+.maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: var(--color-surface) !important;
+}
+
+/* Premium Plotly Tooltip styling matching Shadcn UI */
+.js-plotly-plot .hoverlayer .hovertext path {
+  fill: var(--color-surface) !important;
+  stroke: var(--color-border) !important;
+  stroke-width: 1.2px !important;
+  fill-opacity: 0.96 !important;
+}
+
+.js-plotly-plot .hoverlayer .hovertext text {
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 12px !important;
+  fill: var(--color-text-primary) !important;
+}
+
+.js-plotly-plot .hoverlayer .hovertext text tspan {
+  fill: var(--color-text-primary) !important;
+}
+
+

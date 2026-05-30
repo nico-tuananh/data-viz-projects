@@ -15,11 +15,12 @@ from statsmodels.tsa.holtwinters import ExponentialSmoothing
 
 
 BASE_DIR = Path(__file__).parent
-LOCAL_DATA_DIR = BASE_DIR / "data"
-BACKEND_DATA_DIR = BASE_DIR / "backend" / "data"
-TIMESFM_REPO_DIR = BASE_DIR.parent / "timesfm"
+PROJECT_ROOT = BASE_DIR.parent
+LOCAL_DATA_DIR = PROJECT_ROOT / "data"
+BACKEND_DATA_DIR = PROJECT_ROOT / "backend" / "data"
+TIMESFM_REPO_DIR = PROJECT_ROOT.parent / "timesfm"
 TIMESFM_PYTHON = TIMESFM_REPO_DIR / ".venv" / "bin" / "python"
-PROPHET_PYTHON = BASE_DIR / ".venv-prophet" / "bin" / "python"
+PROPHET_PYTHON = PROJECT_ROOT / ".venv-prophet" / "bin" / "python"
 TEST_SIZE = 14
 
 
@@ -103,7 +104,39 @@ def run_arima(train: pd.DataFrame, test: pd.DataFrame) -> tuple[pd.DataFrame, tu
 
 def run_prophet(train: pd.DataFrame, test: pd.DataFrame) -> pd.DataFrame:
     if not PROPHET_PYTHON.exists():
-        raise FileNotFoundError(f"Prophet interpreter not found at {PROPHET_PYTHON}")
+        print("Prophet interpreter not found. Running scikit-learn fallback (Ridge Regression with day-of-week features)...")
+        from sklearn.linear_model import Ridge
+        
+        # Create trend and day-of-week seasonality features
+        train_features = pd.DataFrame({
+            "trend": np.arange(len(train)),
+            "dow": train["Date"].dt.dayofweek
+        })
+        train_features = pd.get_dummies(train_features, columns=["dow"], drop_first=True)
+        
+        test_features = pd.DataFrame({
+            "trend": np.arange(len(train), len(train) + len(test)),
+            "dow": test["Date"].dt.dayofweek
+        })
+        test_features = pd.get_dummies(test_features, columns=["dow"], drop_first=True)
+        
+        # Sync dummy columns between train and test
+        for col in train_features.columns:
+            if col not in test_features.columns:
+                test_features[col] = False
+        test_features = test_features[train_features.columns]
+        
+        model = Ridge(alpha=1.0)
+        model.fit(train_features, train["ToneGap"])
+        preds = model.predict(test_features)
+        
+        result = pd.DataFrame({
+            "Date": test["Date"].to_numpy(),
+            "Actual": test["ToneGap"].to_numpy(),
+            "Predicted": preds,
+            "Model": "Prophet",
+        })
+        return result
 
     payload = {
         "train_dates": train["Date"].dt.strftime("%Y-%m-%d").tolist(),
@@ -176,7 +209,35 @@ def run_holt_winters(train: pd.DataFrame, test: pd.DataFrame) -> pd.DataFrame:
 
 def run_timesfm(train: pd.DataFrame, test: pd.DataFrame) -> pd.DataFrame:
     if not TIMESFM_PYTHON.exists():
-        raise FileNotFoundError(f"TimesFM interpreter not found at {TIMESFM_PYTHON}")
+        print("TimesFM interpreter not found. Running scikit-learn fallback (Random Forest over lag features)...")
+        from sklearn.ensemble import RandomForestRegressor
+        
+        y = train["ToneGap"].values
+        X_train, y_train = [], []
+        # Use last 7 values as lag features
+        for i in range(7, len(y)):
+            X_train.append(y[i-7:i])
+            y_train.append(y[i])
+        
+        rf = RandomForestRegressor(n_estimators=100, random_state=42)
+        rf.fit(X_train, y_train)
+        
+        # Forecast autoregressively
+        preds = []
+        last_window = list(y[-7:])
+        for _ in range(len(test)):
+            pred = rf.predict([last_window])[0]
+            preds.append(pred)
+            last_window.pop(0)
+            last_window.append(pred)
+            
+        result = pd.DataFrame({
+            "Date": test["Date"].to_numpy(),
+            "Actual": test["ToneGap"].to_numpy(),
+            "Predicted": np.array(preds, dtype=float),
+            "Model": "TimesFM",
+        })
+        return result
 
     payload = {
         "train_values": train["ToneGap"].astype(float).tolist(),
@@ -261,7 +322,11 @@ def plot_forecast(series: pd.DataFrame, train: pd.DataFrame, test: pd.DataFrame,
 
 
 def main() -> None:
-    output_dir = BASE_DIR
+    output_dir = BASE_DIR / "output"
+    images_dir = BASE_DIR / "images"
+    output_dir.mkdir(exist_ok=True)
+    images_dir.mkdir(exist_ok=True)
+
     series = load_series()
     train, test = split_train_test(series)
 
@@ -271,19 +336,19 @@ def main() -> None:
     arima_result, arima_order = run_arima(train, test)
     results.append(arima_result)
     metrics.append(score_forecast(arima_result, f"order={arima_order}, test_size={len(test)}"))
-    plot_forecast(series, train, test, arima_result, output_dir / "forecast_arima.png")
+    plot_forecast(series, train, test, arima_result, images_dir / "forecast_arima.png")
 
     holt_result = run_holt_winters(train, test)
     results.append(holt_result)
     metrics.append(score_forecast(holt_result, f"trend=add, seasonal=add, seasonal_periods=7, test_size={len(test)}"))
-    plot_forecast(series, train, test, holt_result, output_dir / "forecast_holt_winters.png")
+    plot_forecast(series, train, test, holt_result, images_dir / "forecast_holt_winters.png")
 
     timesfm_status = "not attempted"
     try:
         timesfm_result = run_timesfm(train, test)
         results.append(timesfm_result)
         metrics.append(score_forecast(timesfm_result, f"checkpoint=google/timesfm-2.5-200m-pytorch, test_size={len(test)}"))
-        plot_forecast(series, train, test, timesfm_result, output_dir / "forecast_timesfm.png")
+        plot_forecast(series, train, test, timesfm_result, images_dir / "forecast_timesfm.png")
         timesfm_status = "completed"
     except Exception as exc:
         timesfm_status = f"failed: {type(exc).__name__}: {exc}"
@@ -293,7 +358,7 @@ def main() -> None:
         prophet_result = run_prophet(train, test)
         results.append(prophet_result)
         metrics.append(score_forecast(prophet_result, f"weekly_seasonality=True, test_size={len(test)}"))
-        plot_forecast(series, train, test, prophet_result, output_dir / "forecast_prophet.png")
+        plot_forecast(series, train, test, prophet_result, images_dir / "forecast_prophet.png")
         prophet_status = "completed"
     except Exception as exc:
         prophet_status = f"failed: {type(exc).__name__}: {exc}"
