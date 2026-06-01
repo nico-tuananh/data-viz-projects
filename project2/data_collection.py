@@ -56,33 +56,60 @@ CAMEO_CODES = [
     "180", "181", "182", "183", "184", "185", "186",
 ]
 
-# Western media domains (major Western news outlets)
+# Western media domains — US/UK/EU/AU/CA outlets plus high-volume domains
+# from our GDELT pull (Feb–Apr 2025). Subdomain matching is applied in
+# label_media_groups(), so e.g. finance.yahoo.com matches yahoo.com.
 WESTERN_MEDIA_DOMAINS = [
-    # US
-    "nytimes.com", "washingtonpost.com", "wsj.com", "cnn.com", "foxnews.com",
-    "nbcnews.com", "abcnews.go.com", "cbsnews.com", "usatoday.com", "latimes.com",
-    "chicagotribune.com", "bostonglobe.com", "nypost.com", "politico.com",
-    "thehill.com", "axios.com", "vox.com", "huffpost.com", "buzzfeednews.com",
-    "npr.org", "pbs.org", "bloomberg.com", "reuters.com", "apnews.com",
-    # UK
+    # US — major news
+    "nytimes.com", "washingtonpost.com", "wsj.com", "cnn.com", "edition.cnn.com",
+    "foxnews.com", "foxbusiness.com", "nbcnews.com", "abcnews.go.com", "cbsnews.com",
+    "usatoday.com", "latimes.com", "chicagotribune.com", "bostonglobe.com", "bostonherald.com",
+    "nypost.com", "politico.com", "thehill.com", "axios.com", "vox.com", "huffpost.com",
+    "buzzfeednews.com", "npr.org", "pbs.org", "bloomberg.com", "reuters.com", "apnews.com",
+    "newsweek.com", "theepochtimes.com", "breitbart.com", "businessinsider.com", "insider.com",
+    "foreignpolicy.com", "forbes.com", "washingtonexaminer.com", "dailycaller.com", "dailysignal.com",
+    "cnbc.com", "newsmax.com", "theatlantic.com", "newyorker.com", "time.com", "nationalreview.com",
+    "thedailybeast.com", "salon.com", "slate.com", "reason.com", "thefederalist.com", "townhall.com",
+    "patriotpost.us", "newsday.com", "csmonitor.com",
+    # US — aggregators, finance, alternative (frequent in our dataset)
+    "yahoo.com", "aol.com", "marketscreener.com", "marketwatch.com", "mktw.com",
+    "zerohedge.com", "globalsecurity.org", "ibtimes.com", "rttnews.com", "digitaljournal.com",
+    "voanews.com", "rfa.org",
+    # UK & Ireland
     "bbc.com", "bbc.co.uk", "theguardian.com", "telegraph.co.uk", "independent.co.uk",
-    "dailymail.co.uk", "thetimes.co.uk", "ft.com", "economist.com", "sky.com",
+    "dailymail.co.uk", "thetimes.co.uk", "thetimes.com", "ft.com", "economist.com",
+    "sky.com", "news.sky.com", "mirror.co.uk", "express.co.uk", "irishtimes.com",
+    "aol.co.uk",
     # Europe
     "dw.com", "france24.com", "euronews.com", "spiegel.de", "lemonde.fr",
-    # Australia/Canada
-    "abc.net.au", "smh.com.au", "theaustralian.com.au", "cbc.ca", "globalnews.ca",
+    # Australia, Canada, New Zealand
+    "abc.net.au", "9news.com.au", "smh.com.au", "theaustralian.com.au", "newcastleherald.com.au",
+    "cbc.ca", "globalnews.ca", "theglobeandmail.com", "winnipegfreepress.com", "nzherald.co.nz",
 ]
 
-# Chinese state-affiliated media domains
+# Chinese state-affiliated and Hong Kong/China-region outlets seen in our dataset.
+# Excludes independent outlets like chinadigitaltimes.net.
 CHINESE_STATE_MEDIA_DOMAINS = [
+    # Xinhua / News.cn
     "xinhuanet.com", "news.xinhuanet.com", "xinhua.net",
+    "english.news.cn", "news.cn",
+    "french.xinhuanet.com", "arabic.news.cn",
+    # China Daily (all regional editions match via chinadaily.com.cn)
     "chinadaily.com.cn", "chinadaily.com",
-    "globaltimes.cn", "global.chinadaily.com.cn",
-    "cgtn.com", "english.cctv.com",
-    "china.org.cn", "en.people.cn", "people.com.cn",
-    "ecns.cn", "chinanews.com",
+    "usa.chinadaily.com.cn", "europe.chinadaily.com.cn", "africa.chinadaily.com.cn",
+    "global.chinadaily.com.cn",
+    # Global Times, CGTN, CCTV
+    "globaltimes.cn", "globaltimes.com.cn",
+    "cgtn.com", "english.cctv.com", "cctv.com",
+    # People's Daily, China.org.cn, other state outlets
+    "china.org.cn", "french.china.org.cn", "en.people.cn", "people.com.cn",
+    "ecns.cn", "chinanews.com", "chinanews.com.cn",
     "cri.cn", "english.cri.cn",
-    "scmp.com",  # South China Morning Post (Hong Kong, but often aligned)
+    # PLA / embassy sites
+    "eng.chinamil.com.cn", "chinamil.com.cn",
+    "china-embassy.gov.cn",
+    # Hong Kong / China-focused commercial
+    "scmp.com", "thestandard.com.hk",
     "caixin.com", "yicai.com",
 ]
 
