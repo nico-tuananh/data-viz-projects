@@ -7,6 +7,8 @@ Media Groups: Western Media, Chinese State-Affiliated Media, Global/Other
 """
 
 import os
+import json
+import tempfile
 from pathlib import Path
 from dotenv import load_dotenv
 from google.cloud import bigquery
@@ -14,9 +16,26 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 
+from url_scraper import enrich_events_with_scraped_text
+
 load_dotenv(Path(__file__).parent / ".env")
 
-if "GOOGLE_APPLICATION_CREDENTIALS" in os.environ:
+# Support Railway-style JSON credentials in env var (GOOGLE_APPLICATION_CREDENTIALS_JSON)
+_creds_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
+if _creds_json:
+    try:
+        _creds_data = json.loads(_creds_json)
+        _tmp = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".json", delete=False, encoding="utf-8"
+        )
+        json.dump(_creds_data, _tmp)
+        _tmp.flush()
+        _tmp.close()
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = _tmp.name
+        print(f"[credentials] Loaded from GOOGLE_APPLICATION_CREDENTIALS_JSON -> {_tmp.name}")
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"[credentials] WARNING: Failed to parse GOOGLE_APPLICATION_CREDENTIALS_JSON: {e}")
+elif "GOOGLE_APPLICATION_CREDENTIALS" in os.environ:
     creds_path = Path(os.environ["GOOGLE_APPLICATION_CREDENTIALS"])
     if not creds_path.is_absolute():
         creds_path = (Path(__file__).parent / creds_path).resolve()
@@ -34,6 +53,7 @@ END_DATE = "20250430"
 
 OUTPUT_DIR = Path(__file__).parent / "data"
 OUTPUT_DIR.mkdir(exist_ok=True)
+URL_TEXT_CACHE_PATH = OUTPUT_DIR / "url_text_cache.parquet"
 
 # CAMEO event codes for diplomacy, sanctions, retaliation, criticism, rejection, threats
 # Reference: https://www.gdeltproject.org/data/lookups/CAMEO.eventcodes.txt
@@ -494,11 +514,41 @@ def create_tone_gap_series(daily_df: pd.DataFrame) -> pd.DataFrame:
     return tone_gap.sort_values("Date")
 
 
-# =============================================================================
-# Main Pipeline
-# =============================================================================
+def run_scrape_only(
+    scrape_all_urls: bool = False,
+    scrape_workers: int = 8,
+) -> pd.DataFrame:
+    """Re-scrape SOURCEURL text onto existing cleaned events (no BigQuery)."""
+    events_path = OUTPUT_DIR / "gdelt_events_cleaned.parquet"
+    if not events_path.exists():
+        raise FileNotFoundError(
+            f"{events_path} not found — run the full pipeline first."
+        )
 
-def run_pipeline(save_outputs: bool = True) -> dict:
+    print("Loading existing cleaned events...")
+    df = pd.read_parquet(events_path)
+    print(f"Scraping article text from SOURCEURL ({len(df):,} events)...")
+    df = enrich_events_with_scraped_text(
+        df,
+        cache_path=URL_TEXT_CACHE_PATH,
+        scrape_all_urls=scrape_all_urls,
+        workers=scrape_workers,
+    )
+    scraped_ok = (df["ScrapeStatus"] == "ok").sum()
+    print(f"Events with scraped title: {scraped_ok:,} / {len(df):,}")
+
+    df.to_parquet(events_path, index=False)
+    df.to_csv(OUTPUT_DIR / "gdelt_events_cleaned.csv", index=False)
+    print(f"Updated {events_path}")
+    return df
+
+
+def run_pipeline(
+    save_outputs: bool = True,
+    scrape_urls: bool = True,
+    scrape_all_urls: bool = False,
+    scrape_workers: int = 8,
+) -> dict:
     """Run the complete data collection and preprocessing pipeline."""
     
     print("=" * 60)
@@ -531,6 +581,28 @@ def run_pipeline(save_outputs: bool = True) -> dict:
     # Feature engineering
     print("Engineering dashboard features...")
     df = engineer_dashboard_features(df)
+
+    # Scrape article titles/snippets from SOURCEURL (Western + Chinese by default)
+    if scrape_urls:
+        print("\nScraping article text from SOURCEURL...")
+        print("  (cached in data/url_text_cache.parquet — re-runs skip known URLs)")
+        if scrape_all_urls:
+            print("  Mode: all unique URLs (~30–45 min first run with 8 workers)")
+        else:
+            print("  Mode: Western + Chinese URLs only (~8–15 min first run with 8 workers)")
+        df = enrich_events_with_scraped_text(
+            df,
+            cache_path=URL_TEXT_CACHE_PATH,
+            scrape_all_urls=scrape_all_urls,
+            workers=scrape_workers,
+        )
+        scraped_ok = (df["ScrapeStatus"] == "ok").sum()
+        print(f"  Events with scraped title: {scraped_ok:,} / {len(df):,}")
+    else:
+        print("\nSkipping URL scrape (--skip-scrape). Word clouds use GDELT metadata only.")
+        df["ArticleTitle"] = ""
+        df["ArticleSnippet"] = ""
+        df["ScrapeStatus"] = "skipped"
     
     # Create aggregates
     print("Creating aggregated datasets...")
@@ -598,4 +670,40 @@ def load_processed_data() -> dict:
 
 
 if __name__ == "__main__":
-    data = run_pipeline()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="GDELT data collection pipeline")
+    parser.add_argument(
+        "--skip-scrape",
+        action="store_true",
+        help="Skip SOURCEURL scraping (faster; word clouds use metadata only)",
+    )
+    parser.add_argument(
+        "--scrape-all-urls",
+        action="store_true",
+        help="Scrape all unique URLs, not just Western/Chinese (~30–45 min first run)",
+    )
+    parser.add_argument(
+        "--scrape-only",
+        action="store_true",
+        help="Skip BigQuery; scrape headlines onto existing gdelt_events_cleaned.parquet",
+    )
+    parser.add_argument(
+        "--scrape-workers",
+        type=int,
+        default=8,
+        help="Concurrent scrape workers (default: 8)",
+    )
+    args = parser.parse_args()
+
+    if args.scrape_only:
+        run_scrape_only(
+            scrape_all_urls=args.scrape_all_urls,
+            scrape_workers=args.scrape_workers,
+        )
+    else:
+        run_pipeline(
+            scrape_urls=not args.skip_scrape,
+            scrape_all_urls=args.scrape_all_urls,
+            scrape_workers=args.scrape_workers,
+        )

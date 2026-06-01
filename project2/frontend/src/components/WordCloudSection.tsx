@@ -176,6 +176,8 @@ function CloudPanel({ entries, palette, title }: PanelProps) {
 export default function WordCloudSection() {
   const [western, setWestern] = useState<WordCloudEntry[]>([]);
   const [chinese, setChinese] = useState<WordCloudEntry[]>([]);
+  const [textSource, setTextSource] = useState<'headlines' | 'metadata'>('metadata');
+  const [description, setDescription] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
 
@@ -184,6 +186,8 @@ export default function WordCloudSection() {
       .then(res => {
         setWestern(res.groups?.Western ?? []);
         setChinese(res.groups?.Chinese ?? []);
+        setTextSource(res.textSource ?? 'metadata');
+        setDescription(res.description ?? '');
       })
       .catch(err => {
         console.error('Word cloud error:', err);
@@ -196,11 +200,19 @@ export default function WordCloudSection() {
     <div className="bg-surface border border-border rounded-lg p-5 transition-all duration-300 hover:shadow-glow-subtle hover:border-border-elevated">
       {/* Section header */}
       <div className="mb-4">
-        <h3 className="font-mono text-base font-bold tracking-wide">Phrase Word Cloud</h3>
+        <h3 className="font-mono text-base font-bold tracking-wide">Media Framing Word Cloud</h3>
         <p className="text-text-muted text-xs mt-1">
-          TF-IDF phrase clouds — size and color depth reflect term distinctiveness.
-          Hover any term for type, weight, and document count.
+          {description || (
+            textSource === 'headlines'
+              ? 'Contrastive TF-IDF on scraped article headlines — terms that distinguish Western vs Chinese coverage.'
+              : 'Contrastive TF-IDF on GDELT event metadata. Re-run data_collection.py to scrape headlines from SOURCEURL.'
+          )}
         </p>
+        {textSource === 'metadata' && (
+          <p className="text-amber-400/90 text-xs mt-1">
+            Headlines not loaded yet — clouds compare event-type labels, which look similar across both sides.
+          </p>
+        )}
       </div>
 
       {loading && (
@@ -228,9 +240,9 @@ export default function WordCloudSection() {
           </div>
 
           <div className="mt-3 pt-3 border-t border-border flex flex-wrap gap-x-5 gap-y-1 text-xs text-text-muted">
-            <span>◉ Size + color depth = TF-IDF weight (larger/darker = more distinctive)</span>
-            <span>◉ Vertical words = individual terms · horizontal = phrases</span>
-            <span>◉ Hover any term for score details</span>
+            <span>◉ Contrastive TF-IDF — larger/darker = more distinctive vs the other media group</span>
+            <span>◉ Text source: {textSource === 'headlines' ? 'scraped article titles' : 'GDELT event metadata'}</span>
+            <span>◉ Hover any term for score and document count</span>
           </div>
         </>
       )}
