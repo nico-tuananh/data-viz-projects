@@ -211,6 +211,8 @@ export interface WordCloudEntry {
 }
 
 export interface WordCloudResponse {
+  textSource?: 'headlines' | 'metadata';
+  description?: string;
   groups: {
     Western: WordCloudEntry[];
     Chinese: WordCloudEntry[];

@@ -12,13 +12,13 @@ router = APIRouter(prefix="/api/data", tags=["data_refresh"])
 def _run_data_collection():
     """Background task: re-run data_collection.py to fetch fresh GDELT data."""
     project_root = Path(__file__).parent.parent.parent
-    script = project_root / "backend" / "data_collection.py"
+    script = project_root / "data_collection.py"
     env = os.environ.copy()
 
     try:
         result = subprocess.run(
             [sys.executable, str(script)],
-            cwd=str(project_root / "backend"),
+            cwd=str(project_root),
             env=env,
             check=True,
             capture_output=True,
@@ -26,7 +26,7 @@ def _run_data_collection():
         )
         print("[data_refresh] collection completed successfully")
         if result.stdout:
-            print(result.stdout[-2000:])  # tail of stdout
+            print(result.stdout[-2000:])
     except subprocess.CalledProcessError as exc:
         print(f"[data_refresh] collection failed: {exc.stderr}")
         raise

@@ -13,3 +13,7 @@ matplotlib>=3.8.0
 # BigQuery – only used by data_collection.py and /api/data/refresh endpoint
 google-cloud-bigquery>=3.17.0
 db-dtypes>=1.2.0
+
+# URL scraping (data_collection.py lives in project2/, not backend/)
+requests>=2.31.0
+beautifulsoup4>=4.12.0

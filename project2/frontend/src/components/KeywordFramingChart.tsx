@@ -152,7 +152,7 @@ export default function KeywordFramingChart() {
       </div>
 
       <p className="text-text-muted text-xs mb-4">
-        TF-IDF computed over article-level proxies: URL slug keywords, actor names, event types, and locations.
+        TF-IDF on scraped headlines (when available) or GDELT metadata fallback.
         Bars extending right = Western emphasis; left = Chinese emphasis.
       </p>
 
