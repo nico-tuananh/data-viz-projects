@@ -54,11 +54,12 @@ We run these steps in order on the raw DataFrame:
 - Parse `SOURCEURL` → `SourceDomain` (e.g. `yahoo.com`, `scmp.com`)
 
 **Media group labels** (`label_media_groups`)
-- Match each domain against two lists we hardcoded:
-  - `WESTERN_MEDIA_DOMAINS` → `"Western"`
-  - `CHINESE_STATE_MEDIA_DOMAINS` → `"Chinese"`
+- Match each domain against two lists in `data_collection.py`:
+  - `WESTERN_MEDIA_DOMAINS` → `"Western"` (US/UK/EU/AU/CA outlets + high-volume domains from our GDELT pull, e.g. yahoo.com, theepochtimes.com, newsweek.com)
+  - `CHINESE_STATE_MEDIA_DOMAINS` → `"Chinese"` (PRC state media, embassy sites, HK/China-region outlets like scmp.com, english.news.cn)
   - anything else → `"Global/Other"`
-- In our run: **21,695 Global/Other, 1,406 Western, 553 Chinese**. Most outlets don't match either list — the labeling is strict (exact or subdomain match only).
+- Subdomain matching works too — `finance.yahoo.com` counts as Western if `yahoo.com` is on the list
+- After expanding the lists (based on our Feb–Apr 2025 data), expected split is roughly **5,500 Western / 770 Chinese / 17,400 Global/Other** — re-run the pipeline to refresh the saved files
 
 **Dashboard features** (`engineer_dashboard_features`)
 - `EventSentiment` from `GoldsteinScale` (cooperative / conflictual / neutral)
@@ -108,9 +109,9 @@ We save both `.parquet` (for the Shiny app) and `.csv` (easier to inspect manual
 From our pipeline run:
 
 - **23,654 events** — tariff-relevant US–China GDELT events in the 3-month window. Not 23k articles.
-- **2,959 unique domains** — lots of different news sources; only a small fraction get labeled Western or Chinese.
+- **2,959 unique domains** — lots of different news sources; after expanding our Western/Chinese lists, about **23%** of events get a Western or Chinese label (up from ~8% before)
 - **~50/50 USA→CHN vs CHN→USA** — roughly balanced by who initiated the event.
-- **Top domains** (yahoo.com, theepochtimes.com, etc.) — mostly land in `Global/Other` because they're not on our Western/Chinese lists.
+- **Top domains** (yahoo.com, theepochtimes.com, etc.) — yahoo and epoch times are now labeled Western; Indian/Southeast Asian outlets (timesofindia, straitstimes) stay in `Global/Other` on purpose
 
 ---
 
