@@ -100,7 +100,13 @@ Run the series of commands below:
 cd project2
 pip install -r requirements.txt
 python setup_bigquery.py    # Verify GCP setup
-python data_collection.py   # Run the pipeline
+python data_collection.py   # BigQuery + scrape headlines + save outputs
+```
+
+To scrape headlines onto existing data without re-querying BigQuery (~8–15 min):
+
+```bash
+python data_collection.py --scrape-only
 ```
 
 ### Step 3: Output Files
@@ -121,6 +127,7 @@ Key fields in the cleaned dataset:
 - `AvgTone`, `GoldsteinScale` — Sentiment metrics
 - `NumArticles`, `NumMentions` — Coverage intensity
 - `SourceDomain` — Extracted source domain for analysis
+- `ArticleTitle`, `ArticleSnippet` — Scraped from `SOURCEURL` (for word clouds)
 
 
 ### Step 4: Run the Application (FastAPI & React)
