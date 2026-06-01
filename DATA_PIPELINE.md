@@ -69,6 +69,15 @@ We run these steps in order on the raw DataFrame:
 
 This gives us the main event-level table → `gdelt_events_cleaned.parquet/csv`
 
+**Article text scrape** (`url_scraper.py`, optional step)
+- Fetches `og:title` / `<title>` / meta description from each event's `SOURCEURL`
+- Cached in `data/url_text_cache.parquet` — re-runs only fetch new URLs
+- Adds `ArticleTitle`, `ArticleSnippet`, `ScrapeStatus` to the events table
+- Default: Western + Chinese URLs only (~**8–15 min** first run, 8 workers)
+- `--scrape-all-urls`: all ~12,600 unique URLs (~**30–45 min** first run)
+- `--scrape-only`: skip BigQuery, scrape onto existing parquet (fastest if data already collected)
+- `--skip-scrape`: skip entirely; word clouds fall back to GDELT metadata (similar on both sides)
+
 ---
 
 ## 3. Transform — build aggregated tables
@@ -99,6 +108,7 @@ From the cleaned events we build 3 more tables, each for a different chart in th
 | `daily_aggregates` | 1 day × media group | Timelines |
 | `weekly_aggregates` | 1 week × country × media group | Maps |
 | `tone_gap_series` | 1 day | Western–Chinese tone gap |
+| `url_text_cache` | 1 row = 1 URL | Scraped headline cache (reused across runs) |
 
 We save both `.parquet` (for the Shiny app) and `.csv` (easier to inspect manually).
 
@@ -117,21 +127,18 @@ From our pipeline run:
 
 ## How to run it
 
-Everything goes through `run_pipeline()` in `data_collection.py`:
+```bash
+cd project2
+pip install -r requirements.txt
 
-```python
-client = bigquery.Client(project=PROJECT_ID)
-df_raw = query_gdelt_events(client)
+# Full pipeline (BigQuery + scrape + save)
+python data_collection.py
 
-df = clean_date_fields(df_raw)
-df = clean_country_fields(df)
-df = clean_source_fields(df)
-df = label_media_groups(df)
-df = engineer_dashboard_features(df)
+# Already have parquet? Scrape headlines only (~8–15 min)
+python data_collection.py --scrape-only
 
-daily_agg = create_daily_aggregates(df)
-weekly_agg = create_weekly_aggregates(df)
-tone_gap = create_tone_gap_series(daily_agg)
+# Skip scraping (metadata-only word clouds)
+python data_collection.py --skip-scrape
 ```
 
-After the first run, we don't need BigQuery again — `load_processed_data()` just reads the parquet files from `project2/data/`.
+After the first run, the dashboard reads parquet from `project2/data/`. Restart the backend after scraping so word clouds pick up new columns.
