@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import Plotly from 'plotly.js-dist-min';
 import { useTheme } from '../hooks/useTheme';
 import { getKeywords, type KeywordEntry } from '../api';
+import { WESTERN, CHINESE, chartTheme, hoverLabel } from '../lib/colors';
 
 const TOP_N_OPTIONS = [10, 15, 20, 30] as const;
 
@@ -47,10 +48,8 @@ export default function KeywordFramingChart() {
     const wScores = sorted.map((d) => d.w);
     const cScores = sorted.map((d) => -d.c); // negate so Chinese bars extend left
 
-    const textColor = theme === 'dark' ? '#A1A1AA' : '#52525B';
-    const labelColor = theme === 'dark' ? '#71717A' : '#8E8E93';
-    const gridColor = theme === 'dark' ? '#27272A' : '#E4E4E7';
-    const zeroColor = theme === 'dark' ? '#52525B' : '#A1A1AA';
+    const ct = chartTheme(theme);
+    const { textColor, labelColor, gridColor, zeroColor } = ct;
 
     const westernTrace: any = {
       x: wScores,
@@ -58,7 +57,7 @@ export default function KeywordFramingChart() {
       type: 'bar',
       orientation: 'h',
       name: 'Western',
-      marker: { color: '#2563EB', opacity: 0.85 },
+      marker: { color: WESTERN, opacity: 0.85 },
       hovertemplate: '<b>%{y}</b><br>Western TF-IDF: <b>%{x:.4f}</b><extra></extra>',
     };
 
@@ -68,13 +67,15 @@ export default function KeywordFramingChart() {
       type: 'bar',
       orientation: 'h',
       name: 'Chinese',
-      marker: { color: '#EF4444', opacity: 0.85 },
+      marker: { color: CHINESE, opacity: 0.85 },
       customdata: sorted.map((d) => d.c),
       hovertemplate: '<b>%{y}</b><br>Chinese TF-IDF: <b>%{customdata:.4f}</b><extra></extra>',
     };
 
     const maxScore = Math.max(...wScores, ...cScores.map(Math.abs)) * 1.15;
-    const chartHeight = Math.max(380, labels.length * 24);
+    // Lower the floor so 10-keyword charts don't over-allocate vertical space.
+    // 24 px per row × N rows; minimum 260 px prevents tiny charts at very low N.
+    const chartHeight = Math.max(260, labels.length * 24);
 
     Plotly.react(
       container,
@@ -84,7 +85,8 @@ export default function KeywordFramingChart() {
         paper_bgcolor: 'transparent',
         plot_bgcolor: 'transparent',
         font: { color: textColor, family: 'DM Sans, sans-serif' },
-        margin: { t: 20, r: 20, b: 50, l: 120 },
+        // Legend is now an HTML element above the chart, so no SVG top margin needed for it.
+        margin: { t: 10, r: 20, b: 50, l: 120 },
         height: chartHeight,
         xaxis: {
           title: { text: 'TF-IDF Score  (Chinese ←  0  → Western)', font: { color: labelColor, size: 11 } },
@@ -100,24 +102,9 @@ export default function KeywordFramingChart() {
           tickfont: { color: textColor, size: 11 },
           automargin: true,
         },
-        legend: {
-          orientation: 'h',
-          y: 1.05,
-          x: 0.5,
-          xanchor: 'center',
-          font: { color: textColor, size: 12 },
-        },
+        showlegend: false,
         hovermode: 'closest' as const,
-        hoverlabel: {
-          bgcolor: theme === 'dark' ? '#18181b' : '#ffffff',
-          bordercolor: theme === 'dark' ? '#27272a' : '#e4e4e7',
-          font: {
-            family: 'DM Sans, sans-serif',
-            size: 12,
-            color: theme === 'dark' ? '#fafafa' : '#09090b',
-          },
-          align: 'left' as const,
-        },
+        hoverlabel: hoverLabel(ct),
       },
       { responsive: true, displayModeBar: false }
     );
@@ -130,7 +117,7 @@ export default function KeywordFramingChart() {
   return (
     <div className="bg-surface border border-border rounded-lg p-5 transition-all duration-300 hover:shadow-glow-subtle hover:border-border-elevated">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <h3 className="font-mono text-base font-bold tracking-wide">
+        <h3 className="font-display text-base font-semibold tracking-wide">
           Western vs Chinese Keyword Framing
         </h3>
         <div className="flex items-center gap-2 text-xs text-text-secondary">
@@ -151,9 +138,8 @@ export default function KeywordFramingChart() {
         </div>
       </div>
 
-      <p className="text-text-muted text-xs mb-4">
-        TF-IDF on scraped headlines (when available) or GDELT metadata fallback.
-        Bars extending right = Western emphasis; left = Chinese emphasis.
+      <p className="text-text-muted text-[13px] mb-4">
+        TF-IDF on scraped headlines (GDELT metadata as fallback) — bar length reflects how overrepresented each term is in that bloc's framing.
       </p>
 
       {loading && (
@@ -165,7 +151,18 @@ export default function KeywordFramingChart() {
         <div className="flex items-center justify-center h-40 text-error text-sm">{error}</div>
       )}
       {!loading && !error && (
-        <div ref={containerRef} style={{ width: '100%' }} />
+        <>
+          {/* Fixed HTML legend — decoupled from chart height so spacing never shifts */}
+          <div className="flex items-center justify-center gap-5 mb-2">
+            {([{ label: 'Chinese', color: CHINESE }, { label: 'Western', color: WESTERN }] as const).map(({ label, color }) => (
+              <div key={label} className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: color, opacity: 0.85 }} />
+                <span className="text-xs font-medium" style={{ color }}>{label}</span>
+              </div>
+            ))}
+          </div>
+          <div ref={containerRef} style={{ width: '100%' }} />
+        </>
       )}
     </div>
   );

@@ -8,21 +8,21 @@ const GROUP_COLORS: Record<string, { bgChecked: string; borderHover: string; tex
     textChecked: 'text-primary',
     textHover: 'group-hover:text-primary',
     borderHover: 'group-hover:border-primary',
-    glow: 'shadow-[0_0_8px_rgba(37,99,235,0.25)]',
+    glow: 'shadow-[0_0_8px_rgba(44,82,130,0.25)]',
   },
   Chinese: {
     bgChecked: 'bg-error border-error',
     textChecked: 'text-error',
     textHover: 'group-hover:text-error',
     borderHover: 'group-hover:border-error',
-    glow: 'shadow-[0_0_8px_rgba(239,68,68,0.25)]',
+    glow: 'shadow-[0_0_8px_rgba(178,58,72,0.25)]',
   },
   'Global/Other': {
     bgChecked: 'bg-neutral border-neutral',
     textChecked: 'text-neutral',
     textHover: 'group-hover:text-neutral',
     borderHover: 'group-hover:border-neutral',
-    glow: 'shadow-[0_0_8px_rgba(113,113,122,0.25)]',
+    glow: 'shadow-[0_0_8px_rgba(138,141,145,0.25)]',
   },
 };
 
@@ -60,7 +60,7 @@ export default function Sidebar() {
       {/* Sidebar Header */}
       <div className={`flex items-center justify-between mb-6 ${isSidebarCollapsed ? 'flex-col gap-4' : ''}`}>
         {!isSidebarCollapsed && (
-          <h2 className="font-mono text-subhead font-bold tracking-wide text-text-primary">
+          <h2 className="text-subhead text-text-primary">
             Filters
           </h2>
         )}
@@ -84,7 +84,7 @@ export default function Sidebar() {
       {isSidebarCollapsed ? (
         <div className="flex-1 flex items-center justify-center select-none">
           <span
-            className="font-mono text-overline text-text-muted font-bold tracking-[0.15em] whitespace-nowrap"
+            className="text-overline text-text-muted tracking-[0.15em] whitespace-nowrap"
             style={{ writingMode: 'vertical-lr', transform: 'rotate(180deg)' }}
           >
             Filter Controls

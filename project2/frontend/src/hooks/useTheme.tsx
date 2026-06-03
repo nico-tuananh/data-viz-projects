@@ -11,9 +11,8 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setTheme] = useState<Theme>(() => {
-    const saved = localStorage.getItem('coinpulse-theme') as Theme;
+    const saved = localStorage.getItem('gdelt-tariff-theme') as Theme;
     if (saved === 'light' || saved === 'dark') return saved;
-    // Default to dark mode as per CoinPulse spec preference
     return 'dark';
   });
 
@@ -26,7 +25,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       root.classList.remove('dark');
       root.setAttribute('data-theme', 'light');
     }
-    localStorage.setItem('coinpulse-theme', theme);
+    localStorage.setItem('gdelt-tariff-theme', theme);
   }, [theme]);
 
   const toggleTheme = () => {

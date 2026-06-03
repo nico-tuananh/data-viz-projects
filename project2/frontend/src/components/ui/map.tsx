@@ -18,6 +18,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { X, Minus, Plus, Locate, Maximize, Loader2 } from "lucide-react";
+import { WESTERN, CHINESE, GLOBAL } from "../../lib/colors";
 
 import { cn } from "@/lib/utils";
 
@@ -1611,29 +1612,38 @@ function MapClusterLayer<
       canvas.height = 128;
       const ctx = canvas.getContext("2d");
       if (ctx) {
-        const total = w + c + g || 1;
-        const wPct = w / total;
-        const cPct = c / total;
-        const gPct = g / total;
+        const total = w + c + g;
 
-        const colors = ["#2563EB", "#EF4444", "#71717A"];
-        const values = [wPct, cPct, gPct];
-
-        let startAngle = -Math.PI / 2;
-
-        for (let i = 0; i < 3; i++) {
-          if (values[i] === 0) continue;
-          const endAngle = startAngle + values[i] * 2 * Math.PI;
-
+        if (total === 0) {
+          // No group data on any point in this cluster — draw solid Global/Other circle
           ctx.beginPath();
-          ctx.moveTo(64, 64);
-          ctx.arc(64, 64, 50, startAngle, endAngle);
-          ctx.lineTo(64, 64);
-          ctx.closePath();
-          ctx.fillStyle = colors[i];
+          ctx.arc(64, 64, 50, 0, 2 * Math.PI);
+          ctx.fillStyle = GLOBAL;
           ctx.fill();
+        } else {
+          const wPct = w / total;
+          const cPct = c / total;
+          const gPct = g / total;
 
-          startAngle = endAngle;
+          const colors = [WESTERN, CHINESE, GLOBAL];
+          const values = [wPct, cPct, gPct];
+
+          let startAngle = -Math.PI / 2;
+
+          for (let i = 0; i < 3; i++) {
+            if (values[i] === 0) continue;
+            const endAngle = startAngle + values[i] * 2 * Math.PI;
+
+            ctx.beginPath();
+            ctx.moveTo(64, 64);
+            ctx.arc(64, 64, 50, startAngle, endAngle);
+            ctx.lineTo(64, 64);
+            ctx.closePath();
+            ctx.fillStyle = colors[i];
+            ctx.fill();
+
+            startAngle = endAngle;
+          }
         }
 
         // Draw center hole
@@ -1711,13 +1721,16 @@ function MapClusterLayer<
             0.55
           ],
           "icon-allow-overlap": true,
+          "icon-optional": true,
           "text-field": "{point_count_abbreviated}",
-          "text-font": ["Open Sans"],
+          "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
           "text-size": 11,
           "text-allow-overlap": true,
         },
         paint: {
           "text-color": document.documentElement.classList.contains("dark") ? "#fafafa" : "#09090b",
+          "text-halo-color": document.documentElement.classList.contains("dark") ? "#111318" : "#ffffff",
+          "text-halo-width": 1.5,
         },
       });
     } else {
@@ -1760,11 +1773,13 @@ function MapClusterLayer<
         filter: ["has", "point_count"],
         layout: {
           "text-field": "{point_count_abbreviated}",
-          "text-font": ["Open Sans"],
+          "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
           "text-size": 12,
         },
         paint: {
           "text-color": "#fff",
+          "text-halo-color": "rgba(0,0,0,0.35)",
+          "text-halo-width": 1,
         },
       });
     }
@@ -1815,11 +1830,8 @@ function MapClusterLayer<
     if (renderAsPie) {
       if (map.getLayer(clusterLayerId)) {
         const isDark = document.documentElement.classList.contains("dark");
-        map.setPaintProperty(
-          clusterLayerId,
-          "text-color",
-          isDark ? "#fafafa" : "#09090b"
-        );
+        map.setPaintProperty(clusterLayerId, "text-color", isDark ? "#fafafa" : "#09090b");
+        map.setPaintProperty(clusterLayerId, "text-halo-color", isDark ? "#111318" : "#ffffff");
       }
     } else {
       if (map.getLayer(clusterLayerId)) {
@@ -1962,15 +1974,15 @@ function MapClusterLayer<
               Cluster (${total} Events)
             </div>
             <div class="flex items-center gap-1.5 py-0.5">
-              <span style="width:8px; height:8px; border-radius:50%; background:#2563EB; display:inline-block;"></span>
+              <span style="width:8px; height:8px; border-radius:50%; background:${WESTERN}; display:inline-block;"></span>
               Western: <b style="margin-left:auto;">${w}</b>
             </div>
             <div class="flex items-center gap-1.5 py-0.5">
-              <span style="width:8px; height:8px; border-radius:50%; background:#EF4444; display:inline-block;"></span>
+              <span style="width:8px; height:8px; border-radius:50%; background:${CHINESE}; display:inline-block;"></span>
               Chinese: <b style="margin-left:auto;">${c}</b>
             </div>
             <div class="flex items-center gap-1.5 py-0.5">
-              <span style="width:8px; height:8px; border-radius:50%; background:#71717A; display:inline-block;"></span>
+              <span style="width:8px; height:8px; border-radius:50%; background:${GLOBAL}; display:inline-block;"></span>
               Global/Other: <b style="margin-left:auto;">${g}</b>
             </div>
           </div>
