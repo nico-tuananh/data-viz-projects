@@ -21,7 +21,7 @@ FRENCH_STOPWORDS = {
     "chine", "affaires", "entre", "avec", "sont", "par", "cette", "ces", "son", "ses",
 }
 
-# GDELT event-type labels — not headline framing
+# GDELT event-type labels — not headline framing (metadata fallback only)
 METADATA_GENERIC = {
     "verbal", "cooperation", "conflict", "diplomatic", "material", "disapprove",
     "reject", "appeal", "coerce", "threaten", "criticize", "denounce", "unknown",
@@ -30,27 +30,18 @@ METADATA_GENERIC = {
     "disapprove reject", "material cooperation",
 }
 
-# Site branding / outlet names that aren't story framing
-SITE_BOILERPLATE = {
-    "people's daily online", "people's daily", "daily online", "people's",
-    "china org", "xinhua news", "global times", "zerohedge", "yahoo news",
-    "yahoo finance", "bbc news", "cnn news", "the guardian", "huffpost",
-    "boston globe", "boston herald",
+# Page-title junk — whole title is site branding, not a story headline
+JUNK_TITLE_ONLY = {
+    "zerohedge", "yahoo", "yahoo news", "yahoo finance", "bbc news", "cnn news",
+    "people's daily online", "people's daily", "global times", "xinhua news",
+    "the guardian", "huffpost", "boston globe", "boston herald", "newsweek",
 }
 
-# Domain stems for known outlets (first label before the TLD)
-OUTLET_STEMS = {
-    "yahoo", "zerohedge", "newsweek", "marketscreener", "nypost", "cnn", "aol",
-    "ibtimes", "reuters", "bbc", "foxnews", "bloomberg", "forbes", "cnbc",
-    "theguardian", "dailymail", "independent", "breitbart", "businessinsider",
-    "foreignpolicy", "theepochtimes", "globalsecurity", "digitaljournal",
-    "rttnews", "scmp", "xinhuanet", "chinadaily", "globaltimes", "cgtn",
-    "people", "chinanews", "ecns", "thestandard", "caixin", "voanews",
-    "economist", "telegraph", "mirror", "express", "newsmax", "politico",
-    "thehill", "axios", "npr", "nbcnews", "cbsnews", "abcnews", "usatoday",
-    "nytimes", "washingtonpost", "wsj", "latimes", "bostonglobe", "time",
-    "news", "finance", "english", "french", "arabic", "online", "daily",
-    "xinhua", "globe", "boston",
+# Multi-word site chrome sometimes scraped as snippet — block as phrases only
+SITE_BOILERPLATE_PHRASES = {
+    "people's daily online", "daily online", "people's daily", "china org",
+    "yahoo finance", "bbc news", "cnn news", "the guardian",
+    "boston globe", "boston herald",
 }
 
 
@@ -82,32 +73,26 @@ def _is_usable_headline(row) -> bool:
     title_lower = title.lower()
     domain_stem = _domain_stem(row.get("SourceDomain", ""))
 
-    if title_lower in SITE_BOILERPLATE or title_lower == domain_stem:
+    # Reject page titles that are just the outlet name
+    if title_lower in JUNK_TITLE_ONLY or title_lower == domain_stem:
         return False
     if title_lower.replace(" ", "") == domain_stem.replace("the", ""):
         return False
-    if title_lower in OUTLET_STEMS or domain_stem in title_lower.split() and len(title_lower.split()) <= 2:
+    if len(title_lower.split()) <= 2 and domain_stem in title_lower:
         return False
 
     words = _tokenize(title)
     return len(words) >= 3
 
 
-def _is_blocked_phrase(phrase: str, source_domain: str = "") -> bool:
+def _is_blocked_phrase(phrase: str) -> bool:
+    """Block GDELT metadata labels and site-chrome phrases, not outlet mentions in copy."""
     phrase_lower = phrase.lower().strip()
-    if phrase_lower in METADATA_GENERIC or phrase_lower in SITE_BOILERPLATE:
-        return True
-    if phrase_lower in OUTLET_STEMS:
-        return True
-
-    stem = _domain_stem(source_domain)
-    if phrase_lower == stem or phrase_lower.replace("the", "") == stem.replace("the", ""):
+    if phrase_lower in METADATA_GENERIC or phrase_lower in SITE_BOILERPLATE_PHRASES:
         return True
 
     parts = phrase_lower.split()
-    if len(parts) == 1 and parts[0] in OUTLET_STEMS:
-        return True
-    if all(p in STOPWORDS | FRENCH_STOPWORDS | OUTLET_STEMS | METADATA_GENERIC for p in parts):
+    if all(p in STOPWORDS | FRENCH_STOPWORDS | METADATA_GENERIC for p in parts):
         return True
 
     return False
@@ -125,8 +110,7 @@ def extract_phrases(row) -> list[tuple[str, str]]:
     words = _tokenize(f"{title} {snippet}")
     _add_ngrams(words, phrases)
 
-    domain = str(row.get("SourceDomain", ""))
-    return [(p, t) for p, t in phrases if not _is_blocked_phrase(p, domain)]
+    return [(p, t) for p, t in phrases if not _is_blocked_phrase(p)]
 
 
 def extract_terms(row) -> list[str]:
