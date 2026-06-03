@@ -111,7 +111,7 @@ python data_collection.py --scrape-only
 
 ### Step 3: Output Files
 
-The pipeline produces four dashboard-ready datasets in `project2/data/`:
+The pipeline produces four dashboard-ready datasets in `project2/data/` (and auto-syncs parquets to `project2/backend/data/` for Railway):
 
 | File | Description |
 |------|-------------|
