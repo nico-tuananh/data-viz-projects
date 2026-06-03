@@ -15,17 +15,53 @@ STOPWORDS = {
     "www", "http", "https", "html", "amp", "video", "photo", "photos", "live",
 }
 
-# GDELT metadata terms that dominate both sides — de-emphasized when article text exists
+# French function words common in Chinese-state-media French editions
+FRENCH_STOPWORDS = {
+    "les", "des", "etats", "unis", "aux", "pour", "sur", "dans", "une", "qui", "est",
+    "chine", "affaires", "entre", "avec", "sont", "par", "cette", "ces", "son", "ses",
+}
+
+# GDELT event-type labels — not headline framing
 METADATA_GENERIC = {
     "verbal", "cooperation", "conflict", "diplomatic", "material", "disapprove",
     "reject", "appeal", "coerce", "threaten", "criticize", "denounce", "unknown",
     "other", "unk", "usa", "chn", "states", "united", "china", "chinese", "american",
+    "verbal cooperation", "diplomatic cooperation", "verbal conflict", "material conflict",
+    "disapprove reject", "material cooperation",
 }
+
+# Site branding / outlet names that aren't story framing
+SITE_BOILERPLATE = {
+    "people's daily online", "people's daily", "daily online", "people's",
+    "china org", "xinhua news", "global times", "zerohedge", "yahoo news",
+    "yahoo finance", "bbc news", "cnn news", "the guardian", "huffpost",
+    "boston globe", "boston herald",
+}
+
+# Domain stems for known outlets (first label before the TLD)
+OUTLET_STEMS = {
+    "yahoo", "zerohedge", "newsweek", "marketscreener", "nypost", "cnn", "aol",
+    "ibtimes", "reuters", "bbc", "foxnews", "bloomberg", "forbes", "cnbc",
+    "theguardian", "dailymail", "independent", "breitbart", "businessinsider",
+    "foreignpolicy", "theepochtimes", "globalsecurity", "digitaljournal",
+    "rttnews", "scmp", "xinhuanet", "chinadaily", "globaltimes", "cgtn",
+    "people", "chinanews", "ecns", "thestandard", "caixin", "voanews",
+    "economist", "telegraph", "mirror", "express", "newsmax", "politico",
+    "thehill", "axios", "npr", "nbcnews", "cbsnews", "abcnews", "usatoday",
+    "nytimes", "washingtonpost", "wsj", "latimes", "bostonglobe", "time",
+    "news", "finance", "english", "french", "arabic", "online", "daily",
+    "xinhua", "globe", "boston",
+}
+
+
+def _domain_stem(domain: str) -> str:
+    domain = str(domain).lower().replace("www.", "")
+    return domain.split(".")[0]
 
 
 def _tokenize(text: str) -> list[str]:
     words = re.findall(r"[a-z0-9']+", text.lower())
-    return [w for w in words if len(w) > 2 and w not in STOPWORDS]
+    return [w for w in words if len(w) > 2 and w not in STOPWORDS and w not in FRENCH_STOPWORDS]
 
 
 def _add_ngrams(words: list[str], phrases: list[tuple[str, str]]) -> None:
@@ -37,46 +73,60 @@ def _add_ngrams(words: list[str], phrases: list[tuple[str, str]]) -> None:
         phrases.append((f"{words[i]} {words[i + 1]} {words[i + 2]}", "trigram"))
 
 
-def _has_article_text(row) -> bool:
+def _is_usable_headline(row) -> bool:
+    """True when scraped title looks like a real headline, not a site name."""
     title = str(row.get("ArticleTitle", "")).strip()
-    return bool(title) and title.lower() not in ("nan", "none")
+    if not title or title.lower() in ("nan", "none"):
+        return False
+
+    title_lower = title.lower()
+    domain_stem = _domain_stem(row.get("SourceDomain", ""))
+
+    if title_lower in SITE_BOILERPLATE or title_lower == domain_stem:
+        return False
+    if title_lower.replace(" ", "") == domain_stem.replace("the", ""):
+        return False
+    if title_lower in OUTLET_STEMS or domain_stem in title_lower.split() and len(title_lower.split()) <= 2:
+        return False
+
+    words = _tokenize(title)
+    return len(words) >= 3
+
+
+def _is_blocked_phrase(phrase: str, source_domain: str = "") -> bool:
+    phrase_lower = phrase.lower().strip()
+    if phrase_lower in METADATA_GENERIC or phrase_lower in SITE_BOILERPLATE:
+        return True
+    if phrase_lower in OUTLET_STEMS:
+        return True
+
+    stem = _domain_stem(source_domain)
+    if phrase_lower == stem or phrase_lower.replace("the", "") == stem.replace("the", ""):
+        return True
+
+    parts = phrase_lower.split()
+    if len(parts) == 1 and parts[0] in OUTLET_STEMS:
+        return True
+    if all(p in STOPWORDS | FRENCH_STOPWORDS | OUTLET_STEMS | METADATA_GENERIC for p in parts):
+        return True
+
+    return False
 
 
 def extract_phrases(row) -> list[tuple[str, str]]:
-    """Extract phrases from scraped article text, with metadata fallback."""
+    """Extract phrases from usable scraped headlines only."""
     phrases: list[tuple[str, str]] = []
 
-    if _has_article_text(row):
-        title = str(row.get("ArticleTitle", ""))
-        snippet = str(row.get("ArticleSnippet", ""))
-        words = _tokenize(f"{title} {snippet}")
-        _add_ngrams(words, phrases)
+    if not _is_usable_headline(row):
         return phrases
 
-    # Fallback: GDELT event metadata (same pool for both sides — less distinctive)
-    domain = str(row.get("SourceDomain", "")).lower()
-    if domain and domain not in ("unknown", "nan", "none"):
-        parts = domain.split(".")
-        if parts[0] and len(parts[0]) > 2 and parts[0] not in STOPWORDS:
-            phrases.append((parts[0], "unigram"))
+    title = str(row.get("ArticleTitle", ""))
+    snippet = str(row.get("ArticleSnippet", ""))
+    words = _tokenize(f"{title} {snippet}")
+    _add_ngrams(words, phrases)
 
-    for field in ("EventTypeDesc", "QuadClassDesc"):
-        text = str(row.get(field, ""))
-        if text and text.lower() not in ("other", "unknown", "nan", "none"):
-            words = _tokenize(text.replace("/", " "))
-            _add_ngrams(words, phrases)
-
-    for col in ("Actor1Name", "Actor2Name"):
-        name = str(row.get(col, ""))
-        if name and name.lower() not in ("nan", "none", ""):
-            words = _tokenize(name)
-            _add_ngrams(words, phrases)
-
-    cc = str(row.get("ActionGeo_CountryCode", "")).lower()
-    if cc and cc not in ("unk", "nan", "none", ""):
-        phrases.append((cc, "unigram"))
-
-    return phrases
+    domain = str(row.get("SourceDomain", ""))
+    return [(p, t) for p, t in phrases if not _is_blocked_phrase(p, domain)]
 
 
 def extract_terms(row) -> list[str]:
@@ -93,7 +143,7 @@ def compute_distinctive_phrases(
 ) -> list[dict]:
     """
     Contrastive TF-IDF-style scoring: terms frequent in this group but not the other.
-    score = group_freq * log1p(group_freq / (other_freq + epsilon))
+    Only uses rows with usable scraped headlines (real article titles).
     """
     group_df = df[df["MediaGroup"] == group_name]
     other_df = df[df["MediaGroup"] == other_group_name]
@@ -109,8 +159,6 @@ def compute_distinctive_phrases(
     for _, row in group_df.iterrows():
         seen: set[str] = set()
         for phrase, ptype in extract_phrases(row):
-            if phrase in METADATA_GENERIC and not _has_article_text(row):
-                continue
             group_counter[phrase] += 1
             phrase_types[phrase] = ptype
             if phrase not in seen:

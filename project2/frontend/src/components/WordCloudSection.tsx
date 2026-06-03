@@ -3,8 +3,9 @@ import cloud from 'd3-cloud';
 import { getWordCloud, type WordCloudEntry } from '../api';
 
 // ─── Layout canvas dimensions ─────────────────────────────────────────────────
-const PANEL_W = 620;
-const PANEL_H = 460;
+const PANEL_W = 640;
+const PANEL_H = 520;
+const MAX_WORDS = 55;
 
 // ─── Color palettes: index 0 = darkest (high TF-IDF), 5 = lightest ───────────
 const BLUE_PALETTE = ['#1e3a8a', '#1d4ed8', '#2563eb', '#0ea5e9', '#38bdf8', '#7dd3fc'];
@@ -28,34 +29,32 @@ interface D3Word {
 }
 
 // ─── Build word list from API data ────────────────────────────────────────────
-function buildWords(entries: WordCloudEntry[], palette: string[]): D3Word[] {
+function buildWords(entries: WordCloudEntry[], palette: string[], fontScale = 1): D3Word[] {
   if (!entries.length) return [];
 
-  const wts  = entries.map(w => w.weight);
+  const capped = entries.slice(0, MAX_WORDS);
+  const wts  = capped.map(w => w.weight);
   const mn   = Math.min(...wts);
   const mx   = Math.max(...wts);
   const norm = (v: number) => mx === mn ? 0.5 : (v - mn) / (mx - mn);
 
-  return entries.map(w => {
+  return capped.map(w => {
     const t         = norm(w.weight);
     const isPhrase  = (w.type ?? 'unigram') !== 'unigram';
 
-    // Font size: unigrams can be largest; trigrams are capped to avoid extreme width
-    const maxFs = w.type === 'trigram' ? 36 : isPhrase ? 46 : 60;
-    const size  = Math.round(14 + t * (maxFs - 14));
+    const maxFs = w.type === 'trigram' ? 32 : isPhrase ? 40 : 54;
+    const size  = Math.round((14 + t * (maxFs - 14)) * fontScale);
 
-    // CSS font-weight — heavier words look bolder AND d3-cloud measures them wider
-    const fontW = t > 0.72 ? 800 : t > 0.48 ? 700 : t > 0.24 ? 500 : 400;
+    const fontW = t > 0.72 ? 700 : t > 0.48 ? 600 : t > 0.24 ? 500 : 400;
 
-    // Color: highest TF-IDF → index 0 (darkest), lowest → index 5 (lightest)
     const colorIdx = Math.min(palette.length - 1, Math.floor((1 - t) * palette.length));
 
-    // Rotation: phrases always horizontal; unigrams get hash-based vertical/horizontal mix
+    // Keep large / phrase terms horizontal — vertical rotation causes most overlaps
     let rotate = 0;
-    if (!isPhrase) {
+    const rotateThreshold = 26 * fontScale;
+    if (!isPhrase && size < rotateThreshold) {
       const hash = w.word.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-      // 60% horizontal, 20% +90°, 20% -90°
-      const opts = [0, 0, 0, 90, -90] as const;
+      const opts = [0, 0, 0, 0, 90, -90] as const;
       rotate = opts[hash % opts.length];
     }
 
@@ -87,9 +86,11 @@ interface PanelProps {
   entries: WordCloudEntry[];
   palette: string[];
   title: string;
+  fontScale?: number;
+  layoutSeed?: number;
 }
 
-function CloudPanel({ entries, palette, title }: PanelProps) {
+function CloudPanel({ entries, palette, title, fontScale = 1, layoutSeed = 0xcafebabe }: PanelProps) {
   const [placed, setPlaced] = useState<D3Word[]>([]);
   const [computing, setComputing] = useState(true);
   const layoutRef = useRef<{ stop: () => void } | null>(null);
@@ -98,18 +99,18 @@ function CloudPanel({ entries, palette, title }: PanelProps) {
     if (!entries.length) { setComputing(false); return; }
     setComputing(true);
 
-    const words = buildWords(entries, palette);
+    const words = buildWords(entries, palette, fontScale);
 
     const layout = cloud<D3Word>()
       .size([PANEL_W, PANEL_H])
       .words(words)
-      .padding(5)
+      .padding((d) => Math.max(7, Math.round(d.size * 0.15)))
       .rotate((d) => d.rotate)
       .font('"DM Sans", sans-serif')
       .fontWeight((d) => d.weight)
       .fontSize((d) => d.size)
-      .spiral('archimedean')
-      .random(makeRng(0xcafebabe))
+      .spiral('rectangular')
+      .random(makeRng(layoutSeed))
       .on('end', (drawn) => {
         setPlaced(drawn as D3Word[]);
         setComputing(false);
@@ -122,7 +123,7 @@ function CloudPanel({ entries, palette, title }: PanelProps) {
       layoutRef.current?.stop();
       layoutRef.current = null;
     };
-  }, [entries, palette]);
+  }, [entries, palette, fontScale, layoutSeed]);
 
   const phrases = placed.filter(p => p.termType !== 'unigram').length;
 
@@ -149,9 +150,9 @@ function CloudPanel({ entries, palette, title }: PanelProps) {
       >
         {/* d3-cloud centers layout at (0,0), so we translate to panel center */}
         <g transform={`translate(${PANEL_W / 2},${PANEL_H / 2})`}>
-          {placed.map(w => (
+          {placed.map((w, i) => (
             <text
-              key={w.text}
+              key={`${w.text}-${i}`}
               transform={`translate(${w.x ?? 0},${w.y ?? 0}) rotate(${w.rotate})`}
               textAnchor="middle"
               dominantBaseline="middle"
@@ -182,7 +183,7 @@ export default function WordCloudSection() {
   const [error,   setError]   = useState<string | null>(null);
 
   useEffect(() => {
-    getWordCloud(80)
+    getWordCloud(MAX_WORDS)
       .then(res => {
         setWestern(res.groups?.Western ?? []);
         setChinese(res.groups?.Chinese ?? []);
@@ -210,7 +211,7 @@ export default function WordCloudSection() {
         </p>
         {textSource === 'metadata' && (
           <p className="text-amber-400/90 text-xs mt-1">
-            Headlines not loaded yet — clouds compare event-type labels, which look similar across both sides.
+            No usable headlines loaded — run <code className="text-xs">python data_collection.py --scrape-only</code> and restart the backend.
           </p>
         )}
       </div>
@@ -231,6 +232,7 @@ export default function WordCloudSection() {
               title="Western Media"
               entries={western}
               palette={BLUE_PALETTE}
+              fontScale={1.2}
             />
             <CloudPanel
               title="Chinese Media"
@@ -240,8 +242,9 @@ export default function WordCloudSection() {
           </div>
 
           <div className="mt-3 pt-3 border-t border-border flex flex-wrap gap-x-5 gap-y-1 text-xs text-text-muted">
-            <span>◉ Contrastive TF-IDF — larger/darker = more distinctive vs the other media group</span>
-            <span>◉ Text source: {textSource === 'headlines' ? 'scraped article titles' : 'GDELT event metadata'}</span>
+            <span>◉ Contrastive TF-IDF — larger/darker = more distinctive vs the other side</span>
+            <span>◉ Outlet names and GDELT event-type labels filtered out</span>
+            <span>◉ Text source: {textSource === 'headlines' ? 'scraped article headlines' : 'none — scrape required'}</span>
             <span>◉ Hover any term for score and document count</span>
           </div>
         </>
