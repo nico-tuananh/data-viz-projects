@@ -30,8 +30,8 @@ def get_wordcloud(
         "textSource": "headlines" if _USABLE_HEADLINES else "metadata",
         "description": (
             "Contrastive TF-IDF on scraped article headlines — "
-            "outlet names and event-type labels filtered; shows framing terms "
-            "distinctive to each media group."
+            "terms distinctive to each media group (outlet names kept when "
+            "mentioned in headline text)."
             if _USABLE_HEADLINES
             else "No usable scraped headlines found — re-run data_collection.py --scrape-only."
         ),

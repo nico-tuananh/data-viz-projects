@@ -243,7 +243,7 @@ export default function WordCloudSection() {
 
           <div className="mt-3 pt-3 border-t border-border flex flex-wrap gap-x-5 gap-y-1 text-xs text-text-muted">
             <span>◉ Contrastive TF-IDF — larger/darker = more distinctive vs the other side</span>
-            <span>◉ Outlet names and GDELT event-type labels filtered out</span>
+            <span>◉ GDELT event-type labels filtered; outlet names kept if mentioned in headlines</span>
             <span>◉ Text source: {textSource === 'headlines' ? 'scraped article headlines' : 'none — scrape required'}</span>
             <span>◉ Hover any term for score and document count</span>
           </div>
