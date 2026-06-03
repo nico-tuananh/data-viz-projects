@@ -4,9 +4,16 @@ from pathlib import Path
 
 import pandas as pd
 
-DATA_DIR = Path(__file__).parent / "data"
-if not (DATA_DIR / "gdelt_events_cleaned.parquet").exists():
-    DATA_DIR = Path(__file__).parent.parent / "data"
+# Pipeline writes to project2/data/; backend/data/ is an optional deploy copy
+_ROOT_DATA = Path(__file__).parent.parent / "data"
+_BACKEND_DATA = Path(__file__).parent / "data"
+
+if (_ROOT_DATA / "gdelt_events_cleaned.parquet").exists():
+    DATA_DIR = _ROOT_DATA
+elif (_BACKEND_DATA / "gdelt_events_cleaned.parquet").exists():
+    DATA_DIR = _BACKEND_DATA
+else:
+    DATA_DIR = _ROOT_DATA
 
 # Cached DataFrames loaded once at import time
 EVENTS = pd.read_parquet(DATA_DIR / "gdelt_events_cleaned.parquet")
