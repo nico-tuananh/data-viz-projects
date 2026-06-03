@@ -1,12 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getForecastMetrics, type ForecastMetricsResponse } from '../api';
-
-const MODEL_COLORS: Record<string, string> = {
-  ARIMA: '#2563EB',
-  HoltWinters: '#F59E0B',
-  Prophet: '#8B5CF6',
-  TimesFM: '#EF4444',
-};
+import { MODEL_COLORS, GLOBAL } from '../lib/colors';
 
 interface ForecastMetricsCardProps {
   selectedModels: string[];
@@ -30,14 +24,15 @@ export default function ForecastMetricsCard({ selectedModels, onToggleModel }: F
 
   return (
     <div className="bg-surface border border-border rounded-lg p-5 transition-all duration-300 hover:shadow-glow-subtle hover:border-border-elevated">
-      <h3 className="font-mono text-base font-bold tracking-wide mb-4">Forecast Model Metrics</h3>
+      <h3 className="font-display text-base font-semibold tracking-wide mb-1">Forecast Model Metrics</h3>
+      <p className="text-text-muted text-[13px] mb-4">Accuracy evaluated on the Apr 17–30 holdout period — lower MAE/RMSE is better. Click a row to toggle its projection in the chart.</p>
 
       {loading && (
-        <div className="text-text-muted text-sm font-mono">Loading metrics...</div>
+        <div className="text-text-muted text-sm font-sans">Loading metrics...</div>
       )}
 
       {!loading && models.length === 0 && (
-        <div className="text-text-muted text-sm font-mono">No forecast data available.</div>
+        <div className="text-text-muted text-sm font-sans">No forecast data available.</div>
       )}
 
       {!loading && models.length > 0 && (
@@ -52,7 +47,7 @@ export default function ForecastMetricsCard({ selectedModels, onToggleModel }: F
                 className={`flex items-center justify-between rounded-md px-3 py-2 border cursor-pointer select-none transition-all duration-200 hover:scale-[1.01] ${
                   isSelected
                     ? isBest
-                      ? 'border-lime-400/60 bg-lime-400/5 shadow-glow-subtle'
+                      ? 'border-amber-500/60 bg-amber-500/5 shadow-glow-subtle'
                       : 'border-border-elevated bg-surface-elevated'
                     : 'border-border/30 bg-bg/50 opacity-40 hover:opacity-60'
                 }`}
@@ -77,16 +72,16 @@ export default function ForecastMetricsCard({ selectedModels, onToggleModel }: F
                   </div>
                   <div
                     className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: isSelected ? (MODEL_COLORS[m.name] || '#71717A') : '#71717A' }}
+                    style={{ backgroundColor: isSelected ? (MODEL_COLORS[m.name] || GLOBAL) : GLOBAL }}
                   />
                   <span className={`text-sm font-semibold ${isSelected ? 'text-text-primary' : 'text-text-muted'}`}>{m.name}</span>
                   {isBest && isSelected && (
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-lime-400 bg-lime-400/10 px-1.5 py-0.5 rounded">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded">
                       Best MAE
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-4 text-xs font-mono">
+                <div className="flex items-center gap-4 text-xs font-data">
                   <div className="text-right">
                     <div className="text-text-muted">MAE</div>
                     <div className="text-text-primary font-semibold">{m.mae.toFixed(4)}</div>
@@ -102,7 +97,7 @@ export default function ForecastMetricsCard({ selectedModels, onToggleModel }: F
         </div>
       )}
 
-      <div className="mt-3 pt-2 border-t border-border text-[10px] text-text-muted font-mono">
+      <div className="mt-3 pt-2 border-t border-border text-xs text-text-muted font-sans">
         14-day holdout evaluation (Apr 17 – Apr 30)
       </div>
     </div>

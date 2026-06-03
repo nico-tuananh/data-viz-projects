@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import cloud from 'd3-cloud';
 import { getWordCloud, type WordCloudEntry } from '../api';
+import { WESTERN_RAMP, CHINESE_RAMP } from '../lib/colors';
 
 // ─── Layout canvas dimensions ─────────────────────────────────────────────────
 const PANEL_W = 640;
-const PANEL_H = 520;
-const MAX_WORDS = 55;
+const PANEL_H = 480;   // reduced from 520 — less vertical dead space
+const MAX_WORDS = 65;  // increased from 55 — more terms fill the tighter layout
 
 // ─── Color palettes: index 0 = darkest (high TF-IDF), 5 = lightest ───────────
-const BLUE_PALETTE = ['#1e3a8a', '#1d4ed8', '#2563eb', '#0ea5e9', '#38bdf8', '#7dd3fc'];
-const RED_PALETTE  = ['#7f1d1d', '#b91c1c', '#dc2626', '#ef4444', '#f87171', '#fca5a5'];
+const BLUE_PALETTE = WESTERN_RAMP; // muted navy ramp
+const RED_PALETTE  = CHINESE_RAMP; // muted brick ramp
 
 // ─── d3-cloud word shape ──────────────────────────────────────────────────────
 // Extends d3-cloud's Word interface (which uses `weight` for css font-weight)
@@ -42,19 +43,20 @@ function buildWords(entries: WordCloudEntry[], palette: string[], fontScale = 1)
     const t         = norm(w.weight);
     const isPhrase  = (w.type ?? 'unigram') !== 'unigram';
 
-    const maxFs = w.type === 'trigram' ? 32 : isPhrase ? 40 : 54;
-    const size  = Math.round((14 + t * (maxFs - 14)) * fontScale);
+    const maxFs = w.type === 'trigram' ? 28 : isPhrase ? 36 : 54; // unigrams max 54 for prominent top terms
+    const size  = Math.round((13 + t * (maxFs - 13)) * fontScale);
 
     const fontW = t > 0.72 ? 700 : t > 0.48 ? 600 : t > 0.24 ? 500 : 400;
 
     const colorIdx = Math.min(palette.length - 1, Math.floor((1 - t) * palette.length));
 
-    // Keep large / phrase terms horizontal — vertical rotation causes most overlaps
+    // Rotation rule: only 0° or exactly ±90° — no diagonal angles.
+    // High-weight terms (t ≥ 0.75) and all phrases stay horizontal.
+    // Remaining terms follow a deterministic hash → 75% horizontal, 12.5% each at 90°/-90°.
     let rotate = 0;
-    const rotateThreshold = 26 * fontScale;
-    if (!isPhrase && size < rotateThreshold) {
+    if (!isPhrase && t < 0.75) {
       const hash = w.word.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-      const opts = [0, 0, 0, 0, 90, -90] as const;
+      const opts = [0, 0, 0, 0, 0, 0, 90, -90] as const;
       rotate = opts[hash % opts.length];
     }
 
@@ -104,12 +106,12 @@ function CloudPanel({ entries, palette, title, fontScale = 1, layoutSeed = 0xcaf
     const layout = cloud<D3Word>()
       .size([PANEL_W, PANEL_H])
       .words(words)
-      .padding((d) => Math.max(7, Math.round(d.size * 0.15)))
+      .padding((d) => Math.max(3, Math.round(d.size * 0.08))) // tighter margins — was max(7, size×0.15)
       .rotate((d) => d.rotate)
       .font('"DM Sans", sans-serif')
       .fontWeight((d) => d.weight)
       .fontSize((d) => d.size)
-      .spiral('rectangular')
+      .spiral('archimedean') // circular outward spiral fills center naturally
       .random(makeRng(layoutSeed))
       .on('end', (drawn) => {
         setPlaced(drawn as D3Word[]);
@@ -131,7 +133,7 @@ function CloudPanel({ entries, palette, title, fontScale = 1, layoutSeed = 0xcaf
     <div className="flex-1 min-w-[300px]">
       {/* Panel header */}
       <div className="flex items-baseline gap-2 mb-3">
-        <span className="font-mono text-sm font-bold" style={{ color: palette[2] }}>
+        <span className="font-sans text-sm font-bold" style={{ color: palette[2] }}>
           {title}
         </span>
         <span className="text-text-muted text-xs">
@@ -201,12 +203,12 @@ export default function WordCloudSection() {
     <div className="bg-surface border border-border rounded-lg p-5 transition-all duration-300 hover:shadow-glow-subtle hover:border-border-elevated">
       {/* Section header */}
       <div className="mb-4">
-        <h3 className="font-mono text-base font-bold tracking-wide">Media Framing Word Cloud</h3>
-        <p className="text-text-muted text-xs mt-1">
+        <h3 className="font-display text-base font-semibold tracking-wide">Media Framing Word Cloud</h3>
+        <p className="text-text-muted text-[13px] mt-1">
           {description || (
             textSource === 'headlines'
-              ? 'Contrastive TF-IDF on scraped article headlines — terms that distinguish Western vs Chinese coverage.'
-              : 'Contrastive TF-IDF on GDELT event metadata. Re-run data_collection.py to scrape headlines from SOURCEURL.'
+              ? 'TF-IDF on scraped headlines — size and color reflect how distinctive each term is to that bloc.'
+              : 'TF-IDF on GDELT event metadata — headline scraping unavailable.'
           )}
         </p>
         {textSource === 'metadata' && (
@@ -232,12 +234,15 @@ export default function WordCloudSection() {
               title="Western Media"
               entries={western}
               palette={BLUE_PALETTE}
-              fontScale={1.2}
+              fontScale={1.1}
+              layoutSeed={0xcafebabe}
             />
             <CloudPanel
               title="Chinese Media"
               entries={chinese}
               palette={RED_PALETTE}
+              fontScale={1.1}
+              layoutSeed={0xdeadbeef}
             />
           </div>
 

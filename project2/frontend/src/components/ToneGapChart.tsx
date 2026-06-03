@@ -4,6 +4,7 @@ import Plotly from 'plotly.js-dist-min';
 import { useFilters } from '../hooks/useFilters';
 import { useTheme } from '../hooks/useTheme';
 import { getToneGap } from '../api';
+import { WESTERN, CHINESE, TENSION, TENSION_FILL, chartTheme, hoverLabel } from '../lib/colors';
 
 export default function ToneGapChart() {
   const { filters } = useFilters();
@@ -30,7 +31,7 @@ export default function ToneGapChart() {
       x: data.map((d) => d.Date),
       y: data.map((d) => d.WesternTone),
       mode: 'lines' as const,
-      line: { color: '#2563EB', width: 2 },
+      line: { color: WESTERN, width: 2 },
       name: 'Western Tone',
       hovertemplate: '%{fullData.name}: <b>%{y:.3f}</b><extra></extra>',
     };
@@ -39,7 +40,7 @@ export default function ToneGapChart() {
       x: data.map((d) => d.Date),
       y: data.map((d) => d.ChineseTone),
       mode: 'lines' as const,
-      line: { color: '#EF4444', width: 2 },
+      line: { color: CHINESE, width: 2 },
       name: 'Chinese Tone',
       hovertemplate: '%{fullData.name}: <b>%{y:.3f}</b><extra></extra>',
     };
@@ -49,15 +50,14 @@ export default function ToneGapChart() {
       y: data.map((d) => d.ToneGap),
       mode: 'lines' as const,
       fill: 'tozeroy' as const,
-      line: { color: '#84CC16', width: 2 }, // CoinPulse Secondary Lime indicator
-      fillcolor: 'rgba(132, 204, 22, 0.15)', // Lime at 15% opacity
+      line: { color: TENSION, width: 2 }, // champagne gold tension accent
+      fillcolor: TENSION_FILL, // ochre at 15% opacity
       name: 'Tone Gap',
       hovertemplate: '%{fullData.name}: <b>%{y:.3f}</b><extra></extra>',
     };
 
-    const textColor = theme === 'dark' ? '#A1A1AA' : '#52525B';
-    const labelColor = theme === 'dark' ? '#71717A' : '#8E8E93';
-    const gridColor = theme === 'dark' ? '#27272A' : '#E4E4E7';
+    const ct = chartTheme(theme);
+    const { textColor, labelColor, gridColor } = ct;
 
     const zeroLine = {
       x: data.map((d) => d.Date),
@@ -71,7 +71,7 @@ export default function ToneGapChart() {
     Plotly.react(containerRef.current, [westernTrace, chineseTrace, gapTrace, zeroLine], {
       paper_bgcolor: 'transparent',
       plot_bgcolor: 'transparent',
-      font: { color: textColor, family: 'DM Sans, sans-serif' },
+      font: { color: textColor, family: ct.fontFamily },
       margin: { t: 30, r: 30, b: 50, l: 60 },
       xaxis: {
         title: { text: 'Date', font: { color: labelColor, size: 12 } },
@@ -94,16 +94,7 @@ export default function ToneGapChart() {
         font: { color: textColor },
       },
       hovermode: 'x unified' as const,
-      hoverlabel: {
-        bgcolor: theme === 'dark' ? '#18181b' : '#ffffff',
-        bordercolor: theme === 'dark' ? '#27272a' : '#e4e4e7',
-        font: {
-          family: 'DM Sans, sans-serif',
-          size: 12,
-          color: theme === 'dark' ? '#fafafa' : '#09090b',
-        },
-        align: 'left' as const,
-      },
+      hoverlabel: hoverLabel(ct),
     }, {
       responsive: true,
       displayModeBar: false,
@@ -116,7 +107,8 @@ export default function ToneGapChart() {
 
   return (
     <div className="bg-surface border border-border rounded-lg p-5 mb-6 transition-all duration-300 hover:shadow-glow-subtle hover:border-border-elevated">
-      <h3 className="font-mono text-base font-bold tracking-wide mb-4">Western vs Chinese Tone Gap</h3>
+      <h3 className="font-display text-base font-semibold tracking-wide mb-1">Western vs Chinese Tone Gap</h3>
+      <p className="text-text-muted text-[13px] mb-4">GDELT AvgTone (−10 to +10); the shaded area shows divergence between Western and Chinese sentiment.</p>
       <div ref={containerRef} style={{ width: '100%', height: '360px' }} />
     </div>
   );

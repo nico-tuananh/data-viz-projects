@@ -3,13 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import Plotly from 'plotly.js-dist-min';
 import { useTheme } from '../hooks/useTheme';
 import { getForecastEvaluation, regenerateForecast, type ForecastEvaluationResponse } from '../api';
-
-const MODEL_COLORS: Record<string, string> = {
-  ARIMA: '#2563EB',
-  HoltWinters: '#F59E0B',
-  Prophet: '#8B5CF6',
-  TimesFM: '#EF4444',
-};
+import { MODEL_COLORS, GLOBAL, FORECAST_ACTUAL, FORECAST_FULL_SERIES, chartTheme, hoverLabel } from '../lib/colors';
 
 interface ForecastChartProps {
   selectedModels: string[];
@@ -32,9 +26,8 @@ export default function ForecastChart({ selectedModels }: ForecastChartProps) {
     const container = containerRef.current;
     if (!container || !data) return;
 
-    const textColor = theme === 'dark' ? '#A1A1AA' : '#52525B';
-    const labelColor = theme === 'dark' ? '#71717A' : '#8E8E93';
-    const gridColor = theme === 'dark' ? '#27272A' : '#E4E4E7';
+    const ct = chartTheme(theme);
+    const { textColor, labelColor, gridColor } = ct;
 
     const traces: any[] = [];
 
@@ -45,7 +38,7 @@ export default function ForecastChart({ selectedModels }: ForecastChartProps) {
         y: data.fullSeries.map((d) => d.toneGap),
         mode: 'lines' as const,
         connectgaps: true,
-        line: { color: '#94A3B8', width: 1.5 },
+        line: { color: FORECAST_FULL_SERIES, width: 1.5 },
         name: 'ToneGap (full series)',
         hovertemplate: '%{fullData.name}: <b>%{y:.3f}</b><extra></extra>',
       });
@@ -81,8 +74,8 @@ export default function ForecastChart({ selectedModels }: ForecastChartProps) {
         x: firstModel.dates,
         y: actuals,
         mode: 'lines+markers' as const,
-        line: { color: '#16A34A', width: 2.5 },
-        marker: { size: 6, color: '#16A34A' },
+        line: { color: FORECAST_ACTUAL, width: 2.5 },
+        marker: { size: 6, color: FORECAST_ACTUAL },
         name: 'Actual (test)',
         hovertemplate: '%{fullData.name}: <b>%{y:.3f}</b><extra></extra>',
       });
@@ -97,7 +90,7 @@ export default function ForecastChart({ selectedModels }: ForecastChartProps) {
           y: pred.predicted,
           mode: 'lines' as const,
           line: {
-            color: MODEL_COLORS[pred.model] || '#71717A',
+            color: MODEL_COLORS[pred.model] || GLOBAL,
             width: 2,
             dash: 'dash' as const,
           },
@@ -132,16 +125,7 @@ export default function ForecastChart({ selectedModels }: ForecastChartProps) {
         font: { color: textColor, size: 11 },
       },
       hovermode: 'x unified' as const,
-      hoverlabel: {
-        bgcolor: theme === 'dark' ? '#18181b' : '#ffffff',
-        bordercolor: theme === 'dark' ? '#27272a' : '#e4e4e7',
-        font: {
-          family: 'DM Sans, sans-serif',
-          size: 12,
-          color: theme === 'dark' ? '#fafafa' : '#09090b',
-        },
-        align: 'left' as const,
-      },
+      hoverlabel: hoverLabel(ct),
     }, {
       responsive: true,
       displayModeBar: 'hover' as any,
@@ -175,8 +159,8 @@ export default function ForecastChart({ selectedModels }: ForecastChartProps) {
 
   return (
     <div className="bg-surface border border-border rounded-lg p-5 transition-all duration-300 hover:shadow-glow-subtle hover:border-border-elevated">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-mono text-base font-bold tracking-wide">Model Predictions vs Actual</h3>
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="font-display text-base font-semibold tracking-wide">Model Predictions vs Actual</h3>
         <button
           onClick={handleRegenerate}
           disabled={regenerating}
@@ -200,10 +184,11 @@ export default function ForecastChart({ selectedModels }: ForecastChartProps) {
           )}
         </button>
       </div>
+      <p className="text-text-muted text-[13px] mb-4">Four models trained on the full Western–Chinese tone-gap series; dashed lines show each model's 14-day holdout projection against the actual values (solid green line).</p>
 
       {loading && (
         <div className="flex items-center justify-center" style={{ height: '360px' }}>
-          <div className="text-text-muted text-sm font-mono flex items-center gap-2">
+          <div className="text-text-muted text-sm font-sans flex items-center gap-2">
             <svg className="animate-spin h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -214,7 +199,7 @@ export default function ForecastChart({ selectedModels }: ForecastChartProps) {
       )}
 
       {!loading && (!data || data.predictions.length === 0) && (
-        <div className="flex items-center justify-center text-text-muted text-sm font-mono" style={{ height: '360px' }}>
+        <div className="flex items-center justify-center text-text-muted text-sm font-sans" style={{ height: '360px' }}>
           No forecast predictions available.
         </div>
       )}
