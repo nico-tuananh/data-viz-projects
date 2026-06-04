@@ -99,50 +99,64 @@ body {
   box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.45), 0 1px 4px rgba(0, 0, 0, 0.30);
 }
 
-/* ─── Phase 3: editorial hero banner ─────────────────────────────────────────
-   Dark navy → brick gradient (the two media blocs) under a CSS map graticule
-   and faint diagonal "trade-route" lines. No image asset — pure CSS, theme-
-   independent (reads the same in light and dark). White title sits on top.   */
+/* ─── Hero banner: US–China trade-war image + directional gradient overlay ─────
+   The uploaded image (shipping containers colliding, US flag vs China flag) sits
+   full-bleed. A strong left-side gradient keeps the title legible; the right
+   side opens up so the image collision reads clearly.
+   Dark mode: less overlay → image pops more. Light mode: slightly heavier veil. */
 .hero-banner {
   position: relative;
   overflow: hidden;
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  /* Base (light mode): moderate overlay — image visible, text safe */
   background:
-    /* dark overlay — user spec: left 85% opaque, right 65% */
-    linear-gradient(to right, rgba(10, 20, 30, 0.85) 0%, rgba(20, 30, 40, 0.65) 100%),
-    /* editorial colour wash — US blue left, China red right */
-    radial-gradient(ellipse 70% 130% at 10% 0%, rgba(44, 82, 130, 0.38) 0%, transparent 60%),
-    radial-gradient(ellipse 65% 130% at 96% 100%, rgba(178, 58, 72, 0.30) 0%, transparent 58%),
-    /* hero image: local asset served by Vite public/ — no import needed */
-    url('/US-China-trade-war-web2.jpg') center / cover no-repeat,
-    /* solid fallback if the image hasn't been added yet */
-    linear-gradient(135deg, #14233a 0%, #1d3550 48%, #182a41 100%);
-  box-shadow: 0 10px 30px -12px rgba(16, 24, 40, 0.45);
+    linear-gradient(
+      108deg,
+      rgba(4, 8, 16, 0.96) 0%,
+      rgba(6, 10, 20, 0.91) 22%,
+      rgba(6, 12, 22, 0.72) 40%,
+      rgba(8, 14, 24, 0.42) 58%,
+      rgba(8, 14, 24, 0.18) 76%,
+      rgba(4, 8, 14, 0.06) 100%
+    ),
+    url('/US-China-trade-war-web2.jpg') center 40% / cover no-repeat,
+    #07101e;
+  box-shadow: 0 10px 36px -10px rgba(6, 10, 18, 0.65);
 }
-/* Map graticule (meridians/parallels), masked to fade toward the edges */
+/* Dark mode: lighter overlay on the right so the image is more vivid */
+.dark .hero-banner {
+  background:
+    linear-gradient(
+      108deg,
+      rgba(4, 8, 16, 0.97) 0%,
+      rgba(6, 10, 20, 0.94) 22%,
+      rgba(6, 12, 22, 0.76) 38%,
+      rgba(8, 14, 24, 0.36) 55%,
+      rgba(8, 14, 24, 0.10) 72%,
+      rgba(4, 8, 14, 0.02) 100%
+    ),
+    url('/US-China-trade-war-web2.jpg') center 40% / cover no-repeat,
+    #07101e;
+  box-shadow: 0 10px 40px -10px rgba(2, 4, 10, 0.80);
+}
+/* Subtle grid texture on the left (text) side only */
 .hero-banner::before {
   content: '';
   position: absolute;
   inset: 0;
   background-image:
-    repeating-linear-gradient(0deg, transparent 0 39px, rgba(255, 255, 255, 0.05) 39px 40px),
-    repeating-linear-gradient(90deg, transparent 0 39px, rgba(255, 255, 255, 0.05) 39px 40px),
-    radial-gradient(circle at 18% 120%, rgba(255, 255, 255, 0.06) 0 1px, transparent 1.5px);
-  background-size: 40px 40px, 40px 40px, 40px 40px;
-  -webkit-mask-image: radial-gradient(ellipse 130% 150% at 30% 0%, #000 35%, transparent 100%);
-  mask-image: radial-gradient(ellipse 130% 150% at 30% 0%, #000 35%, transparent 100%);
+    repeating-linear-gradient(0deg, transparent 0 39px, rgba(255, 255, 255, 0.04) 39px 40px),
+    repeating-linear-gradient(90deg, transparent 0 39px, rgba(255, 255, 255, 0.04) 39px 40px);
+  background-size: 40px 40px, 40px 40px;
+  /* Fade grid out toward the right so it doesn't overlay the image */
+  -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.5) 28%, rgba(0,0,0,0.1) 48%, transparent 65%);
+  mask-image: linear-gradient(to right, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.5) 28%, rgba(0,0,0,0.1) 48%, transparent 65%);
   pointer-events: none;
 }
-/* Faint diagonal trade-route lines in tension-ochre */
+/* No pseudo ::after overlay — let the photo speak */
 .hero-banner::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image:
-    repeating-linear-gradient(118deg, transparent 0 130px, rgba(200, 137, 62, 0.06) 130px 131px),
-    repeating-linear-gradient(62deg, transparent 0 180px, rgba(255, 255, 255, 0.03) 180px 181px);
-  pointer-events: none;
+  content: none;
 }
 
 /* Editorial default: headings are serif (data-journalism feel). Kept in

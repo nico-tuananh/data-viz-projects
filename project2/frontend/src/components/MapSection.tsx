@@ -1,3 +1,4 @@
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useState, useMemo, useRef } from 'react';
 import * as maplibregl from 'maplibre-gl';
@@ -463,25 +464,9 @@ function MapFitBounds({
     if (!isLoaded || !map) return;
 
     const performFit = () => {
-      if (mode === 'markers' && markers.length > 0) {
-        const lats = markers.map((m) => m.lat);
-        const lngs = markers.map((m) => m.lng);
-        const minLat = Math.min(...lats);
-        const maxLat = Math.max(...lats);
-        const minLng = Math.min(...lngs);
-        const maxLng = Math.max(...lngs);
-
-        if (minLat === maxLat && minLng === maxLng) {
-          map.easeTo({ center: [minLng, minLat], zoom: 4, duration: 1000 });
-        } else {
-          map.fitBounds([
-            [minLng, minLat],
-            [maxLng, maxLat],
-          ], { padding: 40, maxZoom: 4, duration: 1000 });
-        }
-      } else if (mode === 'source' || mode === 'choropleth') {
-        map.easeTo({ center: [12, 18], zoom: 2.0, pitch: 30, duration: 1000 });
-      }
+      // Always fly to Pacific-centered view — US on the right edge, China on the left edge
+      const pitch = mode === 'choropleth' ? 30 : 20;
+      map.easeTo({ center: [160, 18], zoom: 1.25, pitch, duration: 900 });
     };
 
     performFit();
@@ -781,8 +766,8 @@ export default function MapSection() {
     mode === 'markers'
       ? 'Up to 2,000 sampled events on a 3D globe; clusters group by map proximity.'
       : mode === 'source'
-      ? 'Coverage origin — height = source article volume; color = dominant media bloc.'
-      : 'Country-level aggregate — height = article volume; color = average sentiment tone.';
+        ? 'Coverage origin — height = source article volume; color = dominant media bloc.'
+        : 'Country-level aggregate — height = article volume; color = average sentiment tone.';
 
   return (
     <div className="bg-surface border border-border rounded-lg overflow-hidden mb-6 transition-all duration-300 hover:shadow-glow-subtle hover:border-border-elevated">
@@ -801,16 +786,15 @@ export default function MapSection() {
             ] as { key: MapMode; label: string }[]
           ).map(({ key, label }) => (
             <button
-               key={key}
-               className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer ${
-                 mode === key
-                   ? 'bg-primary text-white shadow-glow-subtle'
-                   : 'text-text-muted hover:bg-surface-elevated hover:text-text-primary'
-               }`}
-               onClick={() => {
-                 setMode(key);
-                 setSelectedEvents(null);
-               }}
+              key={key}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer ${mode === key
+                  ? 'bg-primary text-white shadow-glow-subtle'
+                  : 'text-text-muted hover:bg-surface-elevated hover:text-text-primary'
+                }`}
+              onClick={() => {
+                setMode(key);
+                setSelectedEvents(null);
+              }}
             >
               {label}
             </button>
@@ -819,18 +803,18 @@ export default function MapSection() {
       </div>
 
       {/* Map + Detail Panel */}
-      <div className="relative flex" style={{ height: 'clamp(480px, 56vh, 680px)' }}>
-        {/* Map Container */}
-        <div className="relative flex-1 min-w-0 h-full">
+      <div className="relative" style={{ height: 'clamp(560px, 65vh, 780px)' }}>
+        {/* Map Container — always full width */}
+        <div className="absolute inset-0">
           <Map
             ref={mapRef}
             projection={{ type: 'globe' }}
             theme={theme === 'dark' ? 'dark' : 'light'}
-            center={[30, 20]}
-            zoom={2.3}
+            center={[160, 20]}
+            zoom={1.2}
             pitch={20}
             bearing={0}
-            minZoom={2.0}
+            minZoom={0.8}
             className="w-full h-full"
           >
             {mode === 'markers' && (
@@ -965,116 +949,134 @@ export default function MapSection() {
               </div>
             </div>
           )}
+
+          {/* "Click to explore" hint when no events selected */}
+          {!selectedEvents && mode === 'markers' && !loading && (
+            <div className="absolute bottom-3 right-3 z-10 rounded-lg px-3 py-2 text-xs max-w-[180px] text-center pointer-events-none"
+              style={{
+                backgroundColor: theme === 'dark' ? 'rgba(24,24,27,0.88)' : 'rgba(255,255,255,0.88)',
+                border: `1px solid ${theme === 'dark' ? '#27272A' : '#E4E4E7'}`,
+              }}
+            >
+              <span className="text-text-muted">Click a marker or cluster to inspect events</span>
+            </div>
+          )}
         </div>
 
-        {/* ── Event Detail Side Panel (always visible) ── */}
-        <div
-          className="w-80 flex-shrink-0 border-l border-border overflow-y-auto flex flex-col"
-          style={{ backgroundColor: theme === 'dark' ? 'rgba(22,24,32,0.96)' : 'rgba(255,255,255,0.96)' }}
-        >
-          {selectedEvents ? (
-            <>
-              <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 border-b border-border"
-                style={{ backgroundColor: theme === 'dark' ? 'rgba(22,24,32,0.98)' : 'rgba(255,255,255,0.98)' }}>
-                <div>
-                  <h4 className="font-sans text-sm font-bold tracking-wide">
-                    {mode === 'source'
-                      ? `${selectedEvents.length} Source Group${selectedEvents.length !== 1 ? 's' : ''}`
-                      : mode === 'choropleth'
+        {/* ── Event Detail Panel — floating overlay on right ── */}
+        {selectedEvents && (
+          <div
+            className="absolute top-0 right-0 bottom-0 w-72 z-20 border-l border-border overflow-y-auto flex flex-col shadow-2xl"
+            style={{ backgroundColor: theme === 'dark' ? 'rgba(18,20,28,0.97)' : 'rgba(255,255,255,0.97)', backdropFilter: 'blur(8px)' }}
+          >
+            <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 border-b border-border"
+              style={{ backgroundColor: theme === 'dark' ? 'rgba(18,20,28,0.99)' : 'rgba(255,255,255,0.99)' }}>
+              <div>
+                <h4 className="font-sans text-sm font-bold tracking-wide">
+                  {mode === 'source'
+                    ? `${selectedEvents.length} Source Group${selectedEvents.length !== 1 ? 's' : ''}`
+                    : mode === 'choropleth'
                       ? 'Country Summary'
                       : `${selectedEvents.length} Event${selectedEvents.length !== 1 ? 's' : ''}`
-                    }
-                  </h4>
-                  <p className="text-[11px] text-text-muted mt-0.5">
-                    {selectedEvents[0]?.countryName
-                      ? `${selectedEvents[0].countryName} (${selectedEvents[0].country})`
-                      : (selectedEvents[0]?.country || 'Unknown')
-                    } · {selectedEvents[0]?.group || ''}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setSelectedEvents(null)}
-                  className="p-1 rounded hover:bg-surface-elevated transition-colors cursor-pointer text-text-muted hover:text-text-primary"
-                  title="Close"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                  }
+                </h4>
+                <p className="text-[11px] text-text-muted mt-0.5">
+                  {selectedEvents[0]?.countryName
+                    ? `${selectedEvents[0].countryName} (${selectedEvents[0].country})`
+                    : (selectedEvents[0]?.country || 'Unknown')
+                  } · {selectedEvents[0]?.group || ''}
+                </p>
               </div>
-              <div className="divide-y divide-border">
-                {selectedEvents.map((ev, i) => (
-                  <div key={i} className="px-4 py-3 hover:bg-surface-elevated/50 transition-colors">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div
-                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: GROUP_COLORS[ev.group] || GLOBAL }}
-                      />
-                      <span className="font-mono text-[13px] font-semibold truncate text-text-primary">
-                        {ev.source || 'Unknown'}
-                      </span>
+              <button
+                onClick={() => setSelectedEvents(null)}
+                className="p-1 rounded hover:bg-surface-elevated transition-colors cursor-pointer text-text-muted hover:text-text-primary"
+                title="Close"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="divide-y divide-border">
+              {selectedEvents.map((ev, i) => (
+                <div key={i} className="px-4 py-3 hover:bg-surface-elevated/50 transition-colors">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: GROUP_COLORS[ev.group] || GLOBAL }}
+                    />
+                    <span className="font-mono text-[13px] font-semibold truncate text-text-primary">
+                      {ev.source || 'Unknown'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                    <div className="text-text-muted">
+                      Location: <span className="font-mono text-text-primary">{ev.country || '—'}</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                      <div className="text-text-muted">
-                        Location: <span className="font-mono text-text-primary">{ev.country || '—'}</span>
-                      </div>
-                      <div className="text-text-muted">
-                        Group: <span className="font-mono text-text-primary">{ev.group || '—'}</span>
-                      </div>
-                      {ev.tone !== null && (
-                        <div className="text-text-muted">
-                          Tone: <span className={`font-mono font-semibold ${ev.tone >= 0 ? 'text-[#3D8168]' : 'text-[#B23A48]'}`}>
-                            {Number(ev.tone).toFixed(2)}
-                          </span>
-                        </div>
-                      )}
-                      {ev.totalEvents !== undefined && (
-                        <div className="text-text-muted">
-                          Events: <span className="font-mono text-text-primary">{ev.totalEvents.toLocaleString()}</span>
-                        </div>
-                      )}
-                      {ev.totalArticles !== undefined && (
-                        <div className="text-text-muted">
-                          Articles: <span className="font-mono text-text-primary">{ev.totalArticles.toLocaleString()}</span>
-                        </div>
-                      )}
-                      {ev.uniqueDomains !== undefined && (
-                        <div className="text-text-muted">
-                          Domains: <span className="font-mono text-text-primary">{ev.uniqueDomains}</span>
-                        </div>
-                      )}
+                    <div className="text-text-muted">
+                      Group: <span className="font-mono text-text-primary">{ev.group || '—'}</span>
                     </div>
-                    {ev.topDomains && (
-                      <div className="text-text-muted mt-1.5 pt-1 border-t border-border/30">
-                        <span className="font-semibold block text-[11px] uppercase text-text-muted">Top Outlets:</span>
-                        <span className="font-mono text-text-primary text-[11px] leading-tight block mt-0.5 break-words">
-                          {ev.topDomains}
+                    {ev.tone !== null && (
+                      <div className="text-text-muted">
+                        Tone: <span className={`font-mono font-semibold ${ev.tone >= 0 ? 'text-[#3D8168]' : 'text-[#B23A48]'}`}>
+                          {Number(ev.tone).toFixed(2)}
                         </span>
                       </div>
                     )}
-                    {ev.eventType && (
-                      <div className="text-[11px] text-text-muted italic mt-1 truncate">{ev.eventType}</div>
+                    {ev.totalEvents !== undefined && (
+                      <div className="text-text-muted">
+                        Events: <span className="font-mono text-text-primary">{ev.totalEvents.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {ev.totalArticles !== undefined && (
+                      <div className="text-text-muted">
+                        Articles: <span className="font-mono text-text-primary">{ev.totalArticles.toLocaleString()}</span>
+                      </div>
+                    )}
+                    {ev.uniqueDomains !== undefined && (
+                      <div className="text-text-muted">
+                        Domains: <span className="font-mono text-text-primary">{ev.uniqueDomains}</span>
+                      </div>
                     )}
                   </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
-              <svg className="w-10 h-10 text-text-muted mb-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <p className="font-sans text-xs text-text-muted leading-relaxed">
-                {mode === 'markers'
-                  ? 'Click a marker or cluster to list sampled event records — up to 100 records per cluster.'
-                  : mode === 'source'
-                  ? 'Click any country to see the source groups that published coverage from there.'
-                  : 'Click any country to view its aggregate coverage volume and sentiment tone.'
-                }
-              </p>
+                  {ev.topDomains && (
+                    <div className="text-text-muted mt-1.5 pt-1 border-t border-border/30">
+                      <span className="font-semibold block text-[11px] uppercase text-text-muted">Top Outlets:</span>
+                      <span className="font-mono text-text-primary text-[11px] leading-tight block mt-0.5 break-words">
+                        {ev.topDomains}
+                      </span>
+                    </div>
+                  )}
+                  {ev.eventType && (
+                    <div className="text-[11px] text-text-muted italic mt-1 truncate">{ev.eventType}</div>
+                  )}
+                </div>
+              ))}
             </div>
-          )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Insight card ── */}
+      <div className="px-6 py-4 border-t border-border"
+        style={{ backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }}>
+        <div className="flex items-start gap-3">
+          <div className="w-0.5 self-stretch rounded-full flex-shrink-0 mt-0.5"
+            style={{ backgroundColor: mode === 'markers' ? '#5A8FCA' : mode === 'source' ? '#9CA3AF' : '#3D8168' }} />
+          <div>
+            <p className="text-[11px] font-semibold text-text-muted uppercase tracking-wider mb-1">
+              {mode === 'markers' ? 'Event Markers — What to notice'
+                : mode === 'source' ? 'Source Origin — What to notice'
+                  : 'Country View — What to notice'}
+            </p>
+            <p className="text-[13px] text-text-secondary leading-relaxed max-w-3xl">
+              {mode === 'markers'
+                ? 'Blue clusters (Western) concentrate in North America and Western Europe. Red clusters (Chinese) anchor in East Asia and the Pacific Rim. Where both blocs share the same event location, identical geographic events are framed with measurably different tone — drag or right-click to rotate the globe and explore.'
+                : mode === 'source'
+                  ? 'The US, UK, and Australia dominate Western source volume; Mainland China and Hong Kong lead Chinese output. Note how few countries produce coverage from both blocs simultaneously — the narrative is geographically segmented as well as tonally divergent. Column height reflects article volume.'
+                  : 'Coverage skews negative across most countries, reflecting the adversarial framing of tariff escalation. The US and key European partners show the strongest negative average tone, while some Asian economies appear closer to neutral — possibly hedging between the two blocs.'}
+            </p>
+          </div>
         </div>
       </div>
 
