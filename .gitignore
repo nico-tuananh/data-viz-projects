@@ -29,3 +29,10 @@ project2/docs
 DESIGN.md
 project2/start-frontend.sh
 project2/start-backend.sh
+# Local env / model folders
+.env
+project2/.env
+project2/.venv-prophet/
+timesfm/
+__pycache__/
+.DS_Store

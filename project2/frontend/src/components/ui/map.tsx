@@ -229,6 +229,9 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
       attributionControl: {
         compact: true,
       },
+      // Pass projection in constructor so globe mode is active from the start
+      // (avoids post-load setProjection resetting the initial camera position)
+      ...(projection && { projection }),
       ...props,
       ...viewport,
     });
@@ -239,10 +242,13 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
       // This is a workaround to avoid race conditions with the style loading
       // else we have to force update every layer on setStyle change
       styleTimeoutRef.current = setTimeout(() => {
-        setIsStyleLoaded(true);
         if (projection) {
+          // Re-apply projection after each style reload (needed for theme switches).
+          // Camera position is preserved because projection was already active from
+          // the constructor — setProjection here won't reset the camera.
           map.setProjection(projection);
         }
+        setIsStyleLoaded(true);
       }, 100);
     };
     const loadHandler = () => setIsLoaded(true);
@@ -1567,7 +1573,7 @@ function MapClusterLayer<
   id: propId,
   data,
   clusterMaxZoom = 14,
-  clusterRadius = 50,
+  clusterRadius = 35,
   clusterColors = ["#22c55e", "#eab308", "#ef4444"],
   clusterThresholds = [100, 750],
   pointColor = "#3b82f6",
@@ -1714,11 +1720,11 @@ function MapClusterLayer<
           "icon-size": [
             "step",
             ["get", "point_count"],
-            0.35,
+            0.23,
             100,
-            0.45,
+            0.30,
             750,
-            0.55
+            0.38
           ],
           "icon-allow-overlap": true,
           "icon-optional": true,
@@ -1792,8 +1798,8 @@ function MapClusterLayer<
       filter: ["!", ["has", "point_count"]],
       paint: {
         "circle-color": pointColor,
-        "circle-radius": 5,
-        "circle-stroke-width": 2,
+        "circle-radius": 4,
+        "circle-stroke-width": 1.5,
         "circle-stroke-color": "#fff",
       },
     });

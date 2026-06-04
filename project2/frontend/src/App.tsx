@@ -124,7 +124,7 @@ function Dashboard() {
 
         {/* ── Hero + KPI opening brief ─────────────────────────────────────── */}
         <div className="max-w-[1700px] mx-auto w-full p-6">
-          <header className="hero-banner mb-8 px-6 py-6 sm:px-9 sm:py-8">
+          <header className="hero-banner mb-8 px-6 py-10 sm:px-10 sm:py-14">
             <div className="relative z-10 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
               <div className="max-w-2xl">
                 <h1 className="text-headline text-white mb-3">

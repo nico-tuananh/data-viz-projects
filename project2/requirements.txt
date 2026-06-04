@@ -4,6 +4,9 @@ pandas>=2.0.0
 pyarrow>=14.0.0
 python-multipart>=0.0.9
 python-dotenv>=1.0.0
+shiny>=1.6.0
+shinywidgets>=0.8.0
+plotly>=5.20.0
 
 # Forecast model dependencies
 statsmodels>=0.14.0
