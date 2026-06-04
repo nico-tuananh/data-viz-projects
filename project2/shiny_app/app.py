@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import tempfile
 from pathlib import Path
 
 import pandas as pd
@@ -16,6 +17,7 @@ from components.charts import (
     tone_distribution_chart,
     tone_gap_chart,
     tone_intensity_chart,
+    word_cloud_chart,
 )
 from components.chatbot import chatbot_panel
 from components.layout import chart_card, insight_card, kpi_card, story_section, ui_card
@@ -408,16 +410,11 @@ app_ui = ui.page_sidebar(
             ),
             ui.div(
                 ui.p(
-                    "Larger and darker terms are more distinctive to that media group compared "
-                    "with the other side. Left half = Chinese-distinctive; right half = "
-                    "Western-distinctive.",
+                    "Larger and darker terms are more distinctive to that media group. "
+                    "Updates with sidebar filters.",
                     class_="cloud-caption",
                 ),
-                ui.tags.img(
-                    src="phrase_word_cloud.png",
-                    class_="word-cloud-img",
-                    alt="Phrase-level contrastive TF-IDF word cloud showing Western vs Chinese framing terms",
-                ),
+                ui.output_image("word_cloud", width="100%", height="auto"),
                 class_="word-cloud-wrap",
             ),
             class_="chart-card feature-card",
@@ -545,6 +542,16 @@ def server(input, output, session):
         ):
             return DEFAULT_CLOUD_TERMS
         return word_cloud_terms(filtered_events(), 80)
+
+    @render.image
+    def word_cloud():
+        png = word_cloud_chart(cloud_terms(), current_theme())
+        if not png:
+            return None
+        tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+        tmp.write(png)
+        tmp.flush()
+        return {"src": tmp.name, "alt": "Contrastive TF-IDF word cloud"}
 
     @reactive.Calc
     def best_model_name() -> str | None:

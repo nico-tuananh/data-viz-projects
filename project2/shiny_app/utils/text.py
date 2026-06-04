@@ -18,12 +18,6 @@ STOPWORDS = {
     "one", "two", "first", "last", "year", "years", "day", "days", "week", "news",
     "report", "reports", "latest", "update", "read", "full", "story", "via", "com",
     "www", "http", "https", "html", "amp", "video", "photo", "photos", "live",
-    "tariff", "tariffs", "trade", "china", "chinese", "america", "american", "usa",
-    "united", "states", "president", "donald", "trump", "trumps", "trump's",
-    "what", "why", "which", "most", "off", "app", "state", "house", "sen",
-    "karen", "shen", "yun", "iowan", "cesser", "museum",
-    "aol", "cnn", "boston", "globe", "canton", "people's", "peoples", "online",
-    "daily", "global", "xinhua", "org",
 }
 
 FRENCH_STOPWORDS = {
@@ -34,7 +28,7 @@ FRENCH_STOPWORDS = {
 METADATA_GENERIC = {
     "verbal", "cooperation", "conflict", "diplomatic", "material", "disapprove",
     "reject", "appeal", "coerce", "threaten", "criticize", "denounce", "unknown",
-    "other", "unk", "neutral", "negative", "positive", "source", "article",
+    "other", "unk", "usa", "chn", "states", "united", "china", "chinese", "american",
     "verbal cooperation", "diplomatic cooperation", "verbal conflict", "material conflict",
     "disapprove reject", "material cooperation",
 }
@@ -57,9 +51,8 @@ def _domain_stem(domain: str) -> str:
 
 
 def _tokenize(text: str) -> list[str]:
-    words = [w.strip("'") for w in re.findall(r"[a-z0-9']+", str(text).lower())]
-    stopwords = STOPWORDS | FRENCH_STOPWORDS
-    return [w for w in words if len(w) > 2 and w not in stopwords and not w.isdigit()]
+    words = re.findall(r"[a-z0-9']+", text.lower())
+    return [w for w in words if len(w) > 2 and w not in STOPWORDS and w not in FRENCH_STOPWORDS]
 
 
 def _is_usable_headline(row: pd.Series) -> bool:
@@ -154,12 +147,15 @@ def compute_distinctive_phrases(
 def framing_dataframe(df: pd.DataFrame, top_n: int) -> pd.DataFrame:
     rows = []
     for group, other, sign in [("Western", "Chinese", 1), ("Chinese", "Western", -1)]:
+        group_count = 0
         for item in compute_distinctive_phrases(df, group, other, top_n=top_n * 3):
-            if item["type"] == "unigram":
-                item = item.copy()
-                item["signed_score"] = item["score"] * sign
-                rows.append(item)
-            if len([r for r in rows if r["group"] == group]) >= top_n:
+            if item["type"] != "unigram":
+                continue
+            item = item.copy()
+            item["signed_score"] = item["score"] * sign
+            rows.append(item)
+            group_count += 1
+            if group_count >= top_n:
                 break
     return pd.DataFrame(rows)
 

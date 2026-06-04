@@ -720,20 +720,15 @@ a { color: inherit; }
   margin:     0 0 12px;
 }
 
+#word_cloud img,
 .word-cloud-img {
-  display:   block;
-  width:     100%;
-  max-width: 100%;
-  height:    auto;
+  display:       block;
+  width:         100%;
+  max-width:     100%;
+  height:        auto;
   border-radius: 10px;
-  /* The word cloud image has a white background — blend it visually */
-  mix-blend-mode: normal;
-}
-
-/* In dark mode give the image a subtle dark border so it doesn't look pasted-in */
-.word-cloud-img {
-  box-shadow: 0 4px 20px -4px rgba(0,0,0,0.40);
-  border:     1px solid var(--line);
+  box-shadow:    0 4px 20px -4px rgba(0,0,0,0.40);
+  border:        1px solid var(--line);
 }
 
 /* ── Source table ──────────────────────────────────────────────────────── */

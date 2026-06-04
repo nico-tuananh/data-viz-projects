@@ -1,0 +1,10 @@
+# Model-only dependencies — install in a separate venv (see shiny_app/README.md §6)
+#
+# Prophet venv (.venv-prophet):
+#   python3 -m venv .venv-prophet
+#   source .venv-prophet/bin/activate
+#   pip install -r requirements-model.txt
+#
+# TimesFM requires its own cloned repo + uv venv — see README §6.3.
+
+prophet==1.3.0
