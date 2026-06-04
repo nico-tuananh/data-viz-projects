@@ -28,10 +28,14 @@ class DashboardData:
 
 
 def _resolve_data_dir() -> Path:
-    parquet_dir = BACKEND_DATA_DIR
-    if (parquet_dir / "gdelt_events_cleaned.parquet").exists():
-        return parquet_dir
-    return LOCAL_DATA_DIR
+    if (BACKEND_DATA_DIR / "gdelt_events_cleaned.parquet").exists():
+        return BACKEND_DATA_DIR
+    if (LOCAL_DATA_DIR / "gdelt_events_cleaned.parquet").exists():
+        return LOCAL_DATA_DIR
+    raise FileNotFoundError(
+        f"gdelt_events_cleaned.parquet not found in {BACKEND_DATA_DIR} or {LOCAL_DATA_DIR}. "
+        "Run data_collection.py or pull the latest git changes to restore precomputed data."
+    )
 
 
 def _read_table(path: Path, parse_dates: list[str] | None = None) -> pd.DataFrame:

@@ -2,12 +2,90 @@
 
 from __future__ import annotations
 
+import io
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+from wordcloud import WordCloud
 
 from utils.constants import MEDIA_COLORS, MODEL_COLORS, PLOT_FONT, THEME_STYLES
 from utils.transforms import gap_extremes, geo_points, timeline_peaks
+
+# Color ramps matching main branch (darkest → lightest)
+_WESTERN_RAMP = ["#1D3C5E", "#2B5190", "#3D6DA0", "#5A8FCA", "#7AAAD6", "#C1D8EE"]
+_CHINESE_RAMP = ["#7A2828", "#A03434", "#C24848", "#D96B6B", "#E89595", "#F4C0C0"]
+
+
+def _ramp_color_func(ramp: list[str]):
+    """Return a wordcloud color_func that maps TF-IDF weight → ramp color."""
+    def _hex(h: str) -> tuple[int, int, int]:
+        h = h.lstrip("#")
+        return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+
+    rgb_ramp = [_hex(c) for c in ramp]
+
+    def color_func(word, font_size, position, orientation, font_path, random_state, **kwargs):
+        idx = max(0, min(len(rgb_ramp) - 1, int((1 - font_size / 120) * len(rgb_ramp))))
+        r, g, b = rgb_ramp[idx]
+        return f"rgb({r},{g},{b})"
+
+    return color_func
+
+
+def word_cloud_chart(terms: pd.DataFrame, theme_mode: str = "dark") -> bytes:
+    """
+    Render side-by-side Western / Chinese word clouds.
+    Returns PNG bytes suitable for ui.output_image / render.image.
+    """
+    if terms.empty:
+        return b""
+
+    bg = "#0f172a" if theme_mode == "dark" else "#ffffff"
+    western = terms[terms["group"] == "Western"]
+    chinese = terms[terms["group"] == "Chinese"]
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5), facecolor=bg)
+    fig.subplots_adjust(left=0.01, right=0.99, top=0.88, bottom=0.04, wspace=0.06)
+
+    for ax, group_df, ramp, label in [
+        (axes[0], western, _WESTERN_RAMP, "Western Media"),
+        (axes[1], chinese, _CHINESE_RAMP, "Chinese Media"),
+    ]:
+        ax.set_facecolor(bg)
+        ax.axis("off")
+        label_color = ramp[2]
+        ax.set_title(label, color=label_color, fontsize=12, fontweight="bold", pad=6)
+
+        if group_df.empty:
+            ax.text(0.5, 0.5, "No terms available", ha="center", va="center",
+                    color="#94a3b8", fontsize=11, transform=ax.transAxes)
+            continue
+
+        freq = dict(zip(group_df["term"], group_df["score"]))
+        wc = WordCloud(
+            width=680,
+            height=420,
+            background_color=bg,
+            color_func=_ramp_color_func(ramp),
+            prefer_horizontal=0.75,
+            max_words=65,
+            min_font_size=10,
+            max_font_size=90,
+            margin=6,
+            random_state=42,
+            collocations=False,
+        ).generate_from_frequencies(freq)
+        ax.imshow(wc, interpolation="bilinear")
+
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=120, bbox_inches="tight", facecolor=bg)
+    plt.close(fig)
+    buf.seek(0)
+    return buf.read()
 
 
 def _hex_to_rgba(hex_color: str, alpha: float) -> str:
@@ -353,12 +431,14 @@ def tone_gap_chart(tone_gap: pd.DataFrame, theme_mode: str = "dark") -> go.Figur
         line=dict(color=MEDIA_COLORS["ToneGap"], width=3.6, shape="spline", smoothing=0.65),
         marker=dict(size=7, color=MEDIA_COLORS["ToneGap"], line=dict(color="#fff7ed", width=1)),
         name="ToneGap",
-        customdata=gap[["WesternTone", "ChineseTone"]].fillna("n/a"),
+        customdata=gap[["WesternTone", "ChineseTone"]].apply(
+            lambda col: col.map(lambda v: f"{v:.2f}" if pd.notna(v) else "n/a")
+        ),
         hovertemplate=(
             "<b>%{x|%b %d}</b><br>"
             "ToneGap: %{y:.2f}<br>"
-            "Western tone: %{customdata[0]:.2f}<br>"
-            "Chinese tone: %{customdata[1]:.2f}<extra></extra>"
+            "Western tone: %{customdata[0]}<br>"
+            "Chinese tone: %{customdata[1]}<extra></extra>"
         ),
     ))
     fig.add_hline(y=0, line_dash="dash", line_color=theme["baseline"])
@@ -423,10 +503,12 @@ def tone_intensity_chart(daily: pd.DataFrame, theme_mode: str = "dark") -> go.Fi
                 opacity=0.58,
                 line=dict(width=0.8, color=theme["hover_border"]),
             ),
-            customdata=group_df[["Date", "TotalEvents"]],
+            customdata=group_df[["Date", "TotalEvents"]].assign(
+                Date=group_df["Date"].dt.strftime("%b %d")
+            ),
             hovertemplate=(
                 f"{group}<br>"
-                "Date: %{customdata[0]|%b %d}<br>"
+                "Date: %{customdata[0]}<br>"
                 "Articles: %{x:,}<br>"
                 "Events: %{customdata[1]:,}<br>"
                 "Avg tone: %{y:.2f}<extra></extra>"
@@ -472,39 +554,6 @@ def keyword_chart(keywords: pd.DataFrame, top_n: int, theme_mode: str = "dark") 
     )
     fig.update_xaxes(tickformat=".3f")
     return apply_layout(fig, height=chart_height, show_legend=False, hovermode="closest", bottom=68, theme_mode=theme_mode)
-
-
-def term_bubble_chart(terms: pd.DataFrame) -> go.Figure:
-    if terms.empty:
-        return _empty_figure("No headline phrase cloud available.", 460)
-    terms = terms.sort_values("score", ascending=False).head(48).copy()
-    terms["rank"] = range(len(terms))
-    terms["x"] = terms.groupby("group").cumcount()
-    terms["y"] = terms["group"].map({"Western": 1, "Chinese": -1}).fillna(0)
-    fig = px.scatter(
-        terms,
-        x="x",
-        y="y",
-        size="score",
-        color="group",
-        text="term",
-        color_discrete_map=MEDIA_COLORS,
-        size_max=48,
-        hover_data={"score": ":.4f", "count": True, "doc_count": True, "x": False, "y": False},
-    )
-    fig.update_traces(
-        textposition="middle center",
-        textfont=dict(color="#f8fafc", size=11),
-        marker=dict(opacity=0.72, line=dict(width=1, color="rgba(255,255,255,0.35)")),
-    )
-    fig.update_yaxes(
-        tickmode="array",
-        tickvals=[-1, 1],
-        ticktext=["Chinese phrases", "Western phrases"],
-        range=[-1.7, 1.7],
-    )
-    fig.update_xaxes(visible=False)
-    return apply_layout(fig, height=460, hovermode="closest", bottom=76)
 
 
 def forecast_chart(predictions: pd.DataFrame, models: list[str], best_model: str | None = None, theme_mode: str = "dark") -> go.Figure:
