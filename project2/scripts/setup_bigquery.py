@@ -5,12 +5,12 @@ import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv(Path(__file__).parent / ".env")
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 if "GOOGLE_APPLICATION_CREDENTIALS" in os.environ:
     creds_path = Path(os.environ["GOOGLE_APPLICATION_CREDENTIALS"])
     if not creds_path.is_absolute():
-        creds_path = (Path(__file__).parent / creds_path).resolve()
+        creds_path = (Path(__file__).resolve().parents[1] / creds_path).resolve()
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(creds_path)
 
 

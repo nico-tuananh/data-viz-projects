@@ -9,9 +9,8 @@ import pandas as pd
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-BACKEND_DATA_DIR = PROJECT_ROOT / "backend" / "data"
-LOCAL_DATA_DIR = PROJECT_ROOT / "data"
-MODEL_OUTPUT_DIR = PROJECT_ROOT / "model" / "output"
+DATA_DIR = PROJECT_ROOT / "data"
+MODEL_OUTPUT_DIR = PROJECT_ROOT / "forecasting" / "output"
 
 
 @dataclass(frozen=True)
@@ -25,17 +24,6 @@ class DashboardData:
     data_dir: Path
     model_dir: Path
     warnings: tuple[str, ...]
-
-
-def _resolve_data_dir() -> Path:
-    if (BACKEND_DATA_DIR / "gdelt_events_cleaned.parquet").exists():
-        return BACKEND_DATA_DIR
-    if (LOCAL_DATA_DIR / "gdelt_events_cleaned.parquet").exists():
-        return LOCAL_DATA_DIR
-    raise FileNotFoundError(
-        f"gdelt_events_cleaned.parquet not found in {BACKEND_DATA_DIR} or {LOCAL_DATA_DIR}. "
-        "Run data_collection.py or pull the latest git changes to restore precomputed data."
-    )
 
 
 def _read_table(path: Path, parse_dates: list[str] | None = None) -> pd.DataFrame:
@@ -53,7 +41,12 @@ def _read_table(path: Path, parse_dates: list[str] | None = None) -> pd.DataFram
 
 def load_dashboard_data() -> DashboardData:
     """Load all precomputed artifacts once at app startup."""
-    data_dir = _resolve_data_dir()
+    if not (DATA_DIR / "gdelt_events_cleaned.parquet").exists():
+        raise FileNotFoundError(
+            f"gdelt_events_cleaned.parquet not found in {DATA_DIR}. "
+            "Run scripts/data_collection.py or pull the latest git changes."
+        )
+    data_dir = DATA_DIR
     warnings: list[str] = []
 
     events = _read_table(data_dir / "gdelt_events_cleaned.parquet", ["Date", "WeekStart", "DateAdded"])
@@ -123,7 +116,6 @@ def filter_by_controls(
     start: pd.Timestamp,
     end: pd.Timestamp,
     media_groups: list[str],
-    direction: str = "All",
     countries: list[str] | None = None,
     date_col: str = "Date",
 ) -> pd.DataFrame:
@@ -135,8 +127,6 @@ def filter_by_controls(
     ].copy()
     if media_groups and "MediaGroup" in filtered:
         filtered = filtered[filtered["MediaGroup"].isin(media_groups)]
-    if direction != "All" and "EventDirection" in filtered:
-        filtered = filtered[filtered["EventDirection"] == direction]
     if countries and "ActionCountry" in filtered:
         filtered = filtered[filtered["ActionCountry"].isin(countries)]
     return filtered

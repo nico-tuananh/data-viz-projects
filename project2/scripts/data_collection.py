@@ -7,8 +7,8 @@ Media Groups: Western Media, Chinese State-Affiliated Media, Global/Other
 """
 
 import os
+import sys
 import json
-import shutil
 import tempfile
 from pathlib import Path
 from dotenv import load_dotenv
@@ -17,9 +17,11 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 
+# Allow `from url_scraper import ...` when running as `python scripts/data_collection.py`
+sys.path.insert(0, str(Path(__file__).parent))
 from url_scraper import enrich_events_with_scraped_text
 
-load_dotenv(Path(__file__).parent / ".env")
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 # Support Railway-style JSON credentials in env var (GOOGLE_APPLICATION_CREDENTIALS_JSON)
 _creds_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
@@ -52,32 +54,9 @@ PROJECT_ID = os.environ.get("GOOGLE_CLOUD_PROJECT", "your-gcp-project-id")
 START_DATE = "20250201"
 END_DATE = "20250430"
 
-OUTPUT_DIR = Path(__file__).parent / "data"
+OUTPUT_DIR = Path(__file__).resolve().parents[1] / "data"
 OUTPUT_DIR.mkdir(exist_ok=True)
-BACKEND_DATA_DIR = Path(__file__).parent / "backend" / "data"
 URL_TEXT_CACHE_PATH = OUTPUT_DIR / "url_text_cache.parquet"
-
-# Parquet files copied to backend/data/ after each pipeline run (Railway deploy bundle)
-BACKEND_SYNC_FILES = [
-    "gdelt_events_cleaned.parquet",
-    "daily_aggregates.parquet",
-    "weekly_aggregates.parquet",
-    "tone_gap_series.parquet",
-    "url_text_cache.parquet",
-]
-
-
-def sync_to_backend_data() -> None:
-    """Copy pipeline outputs to backend/data/ for self-contained Railway deploys."""
-    BACKEND_DATA_DIR.mkdir(parents=True, exist_ok=True)
-    copied = []
-    for name in BACKEND_SYNC_FILES:
-        src = OUTPUT_DIR / name
-        if src.exists():
-            shutil.copy2(src, BACKEND_DATA_DIR / name)
-            copied.append(name)
-    if copied:
-        print(f"Synced {len(copied)} file(s) to {BACKEND_DATA_DIR}/")
 
 # CAMEO event codes for diplomacy, sanctions, retaliation, criticism, rejection, threats
 # Reference: https://www.gdeltproject.org/data/lookups/CAMEO.eventcodes.txt
@@ -563,7 +542,6 @@ def run_scrape_only(
 
     df.to_parquet(events_path, index=False)
     df.to_csv(OUTPUT_DIR / "gdelt_events_cleaned.csv", index=False)
-    sync_to_backend_data()
     print(f"Updated {events_path}")
     return df
 
@@ -669,8 +647,6 @@ def run_pipeline(
         for f in OUTPUT_DIR.glob("*"):
             print(f"  - {f.name}")
 
-        sync_to_backend_data()
-    
     print("\nPipeline complete!")
     
     return {
@@ -711,11 +687,6 @@ if __name__ == "__main__":
         help="Scrape all unique URLs, not just Western/Chinese (~30–45 min first run)",
     )
     parser.add_argument(
-        "--sync-backend",
-        action="store_true",
-        help="Copy project2/data/*.parquet to backend/data/ (for Railway deploy)",
-    )
-    parser.add_argument(
         "--scrape-only",
         action="store_true",
         help="Skip BigQuery; scrape headlines onto existing gdelt_events_cleaned.parquet",
@@ -728,9 +699,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    if args.sync_backend:
-        sync_to_backend_data()
-    elif args.scrape_only:
+    if args.scrape_only:
         run_scrape_only(
             scrape_all_urls=args.scrape_all_urls,
             scrape_workers=args.scrape_workers,

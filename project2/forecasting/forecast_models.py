@@ -16,8 +16,7 @@ from statsmodels.tsa.holtwinters import ExponentialSmoothing
 
 BASE_DIR = Path(__file__).parent
 PROJECT_ROOT = BASE_DIR.parent
-LOCAL_DATA_DIR = PROJECT_ROOT / "data"
-BACKEND_DATA_DIR = PROJECT_ROOT / "backend" / "data"
+DATA_DIR = PROJECT_ROOT / "data"
 TIMESFM_REPO_DIR = PROJECT_ROOT.parent / "timesfm"
 TIMESFM_PYTHON = TIMESFM_REPO_DIR / ".venv" / "bin" / "python"
 PROPHET_PYTHON = PROJECT_ROOT / ".venv-prophet" / "bin" / "python"
@@ -26,13 +25,13 @@ TEST_SIZE = 14
 
 def resolve_tone_gap_path() -> Path:
     candidates = [
-        LOCAL_DATA_DIR / "tone_gap_series.csv",
-        BACKEND_DATA_DIR / "tone_gap_series.parquet",
+        DATA_DIR / "tone_gap_series.parquet",
+        DATA_DIR / "tone_gap_series.csv",
     ]
     for path in candidates:
         if path.exists():
             return path
-    raise FileNotFoundError("Could not find tone_gap_series data in project2/data or project2/backend/data.")
+    raise FileNotFoundError("Could not find tone_gap_series data in project2/data/. Run scripts/data_collection.py.")
 
 
 def load_series() -> pd.DataFrame:
