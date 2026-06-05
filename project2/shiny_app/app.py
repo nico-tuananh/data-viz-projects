@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 from shiny import App, reactive, render, ui
-from shinywidgets import output_widget, render_widget
+from shinywidgets import output_widget, render_plotly, render_widget
 
 from components.charts import (
     daily_volume_chart,
@@ -39,9 +39,6 @@ DATE_MIN, DATE_MAX = date_bounds(DATA.events)
 MEDIA_CHOICES = available_media(DATA.events)
 DEFAULT_KEYWORDS = framing_dataframe(DATA.events, 30) if not DATA.events.empty else pd.DataFrame()
 DEFAULT_CLOUD_TERMS = word_cloud_terms(DATA.events, 100) if not DATA.events.empty else pd.DataFrame()
-DIRECTION_CHOICES = ["All"]
-if not DATA.events.empty and "EventDirection" in DATA.events:
-    DIRECTION_CHOICES.extend(sorted(DATA.events["EventDirection"].dropna().unique().tolist()))
 COUNTRY_CHOICES = []
 if not DATA.events.empty and "ActionCountry" in DATA.events:
     COUNTRY_CHOICES = sorted(DATA.events["ActionCountry"].dropna().unique().tolist())
@@ -104,12 +101,6 @@ app_ui = ui.page_sidebar(
             choices={"dark": "Dark", "light": "Light"},
             selected="dark",
             inline=True,
-        ),
-        ui.input_select(
-            "event_direction",
-            "Event direction",
-            choices=DIRECTION_CHOICES,
-            selected="All",
         ),
         ui.input_selectize(
             "countries",
@@ -364,7 +355,9 @@ app_ui = ui.page_sidebar(
         "Emotional Divergence",
         "How did emotional tone split across media groups?",
         "ToneGap = Western weighted tone − Chinese weighted tone. Positive values mean Western "
-        "coverage is warmer than Chinese coverage on the same day.",
+        "coverage is warmer than Chinese coverage on the same day. "
+        "Note: ToneGap is precomputed from all Western and Chinese events — "
+        "the media-group filter does not apply to this chart.",
         "Watch zero-line crossings, extreme gaps, and whether tone shifts coincide with high-volume "
         "days. The shaded region shows which bloc is more positive at any moment.",
         chart_card(
@@ -500,7 +493,6 @@ def server(input, output, session):
             start,
             end,
             selected_media(),
-            input.event_direction(),
             selected_countries(),
         )
 
@@ -524,7 +516,6 @@ def server(input, output, session):
             start == DATE_MIN
             and end == DATE_MAX
             and set(selected_media()) == set(MEDIA_CHOICES)
-            and input.event_direction() == "All"
             and not selected_countries()
         ):
             return DEFAULT_KEYWORDS
@@ -537,7 +528,6 @@ def server(input, output, session):
             start == DATE_MIN
             and end == DATE_MAX
             and set(selected_media()) == set(MEDIA_CHOICES)
-            and input.event_direction() == "All"
             and not selected_countries()
         ):
             return DEFAULT_CLOUD_TERMS
@@ -655,7 +645,7 @@ def server(input, output, session):
             class_="map-insight-card",
         )
 
-    @render_widget
+    @render_plotly
     def tone_gap():
         return tone_gap_chart(filtered_tone_gap(), current_theme())
 
@@ -826,7 +816,6 @@ def server(input, output, session):
             date_start     = selected_dates()[0],
             date_end       = selected_dates()[1],
             media_groups   = selected_media(),
-            direction      = input.event_direction(),
             countries      = selected_countries(),
             forecast_metrics = DATA.forecast_metrics,
         )

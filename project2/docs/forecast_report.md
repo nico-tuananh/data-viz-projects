@@ -12,9 +12,9 @@ The evaluation used 89 daily observations from `tone_gap_series.csv`, where `Ton
 
 | Model | MAE | RMSE | Notes |
 |---|---:|---:|---|
-| TimesFM | 1.7251 | 2.0532 | Pretrained `google/timesfm-2.5-200m-pytorch` |
-| ARIMA | 1.6869 | 2.1741 | Best order: `(3, 1, 3)` |
-| Prophet | 1.9773 | 2.4161 | Weekly seasonality enabled |
+| ARIMA | 1.6871 | 2.1743 | Best order: `(3, 1, 3)` · **lowest MAE** |
+| TimesFM | 1.8350 | 2.1177 | Pretrained `google/timesfm-2.5-200m-pytorch` · **lowest RMSE** |
+| Prophet | 1.9500 | 2.3908 | Weekly seasonality enabled |
 | Holt-Winters | 1.9901 | 2.4418 | Additive trend, additive seasonality, period = 7 |
 
 ### Interpretation
@@ -23,15 +23,15 @@ TimesFM achieved the lowest RMSE, indicating the best overall performance when l
 
 ### Figures
 
-The evaluation script also generates four forecast plots in `project2/`:
+The evaluation script generates four forecast plots saved to `forecasting/images/`:
 
-- `forecast_timesfm.png`
-- `forecast_arima.png`
-- `forecast_prophet.png`
-- `forecast_holt_winters.png`
+- `forecasting/images/forecast_timesfm.png`
+- `forecasting/images/forecast_arima.png`
+- `forecasting/images/forecast_prophet.png`
+- `forecasting/images/forecast_holt_winters.png`
 
 ### Reproducibility
 
-- Metrics: `forecast_metrics.csv`
-- Predictions: `forecast_predictions.csv`
-- Script: `forecast_models.py`
+- Metrics: `forecasting/output/forecast_metrics.csv`
+- Predictions: `forecasting/output/forecast_predictions.csv`
+- Script: `forecasting/forecast_models.py`

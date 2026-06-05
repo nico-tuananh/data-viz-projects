@@ -420,6 +420,7 @@ def tone_gap_chart(tone_gap: pd.DataFrame, theme_mode: str = "dark") -> go.Figur
     if tone_gap.empty or "ToneGap" not in tone_gap:
         return _empty_figure("ToneGap data is unavailable for this date range.", 500, theme_mode)
     gap = tone_gap.sort_values("Date").copy()
+    gap["Date"] = gap["Date"].dt.strftime("%Y-%m-%d")
     theme = THEME_STYLES[theme_mode]
     fig = go.Figure()
     fig.add_hrect(y0=0, y1=max(gap["ToneGap"].max(skipna=True), 0), fillcolor=theme["subtle_positive"], line_width=0)
