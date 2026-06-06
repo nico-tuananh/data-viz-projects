@@ -1,0 +1,25 @@
+# ── shinyapps.io deployment requirements ──────────────────────────────────────
+# This file contains ONLY the packages needed to run the Shiny dashboard.
+# Do NOT add data-pipeline or model-training dependencies here.
+#
+# To deploy:
+#   pip install rsconnect-python
+#   rsconnect deploy shiny \
+#       --name <your-shinyapps-account> \
+#       --title "tariff-tensions" \
+#       --app-dir . \
+#       --requirements requirements-deploy.txt \
+#       shiny_app/app.py
+
+shiny>=1.6.0
+shinywidgets>=0.8.0
+plotly>=5.20.0
+pandas>=2.0.0
+pyarrow>=14.0.0
+numpy>=1.24.0
+matplotlib>=3.8.0
+wordcloud>=1.9.3
+python-dotenv>=1.0.0
+requests>=2.31.0
+statsmodels>=0.14.0
+scikit-learn>=1.3.0

@@ -1,0 +1,71 @@
+# ── Secrets — NEVER commit these ──────────────────────────────────────────────
+.env
+*.env
+.env.local
+.env.*.local
+
+# ── Python ─────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+
+# ── Virtual environments ────────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ── macOS ──────────────────────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+
+# ── Editor ─────────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+
+# ── Jupyter ────────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ── Temp / logs ────────────────────────────────────────────────────────────────
+*.log
+*.tmp
+*.temp
+/tmp/
+
+# ── rsconnect (deployment cache — does NOT contain secrets) ────────────────────
+# Uncomment the next line if you want to re-enter your account on every deploy:
+# rsconnect-python/
+
+# ── Node (not used here, safety net) ──────────────────────────────────────────
+node_modules/
