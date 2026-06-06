@@ -80,7 +80,8 @@ project2/
 │
 ├── docs/                   # Reports and setup notes
 │   ├── forecast_report.md  # Forecasting methodology & results
-│   └── timesfm_setup.md    # TimesFM environment setup guide
+│   ├── timesfm_setup.md    # TimesFM environment setup guide
+│   └── DATA_PIPELINE.md    # GDELT ETL pipeline walkthrough
 │
 ├── main.py                 # Dashboard launcher (runs shiny_app/app.py via subprocess)
 ├── requirements.txt        # Full local environment (dashboard + pipeline + models)
@@ -196,7 +197,7 @@ Copy `.env.example` to `.env` locally. **Never commit `.env`.**
 - No BigQuery access or internet connection is needed to run the dashboard locally.
 - The data pipeline scripts (`scripts/`) are provided for full reproducibility but are not part of the normal run flow.
 
-For detailed setup notes (Prophet venv, TimesFM, forecasting methodology), see `docs/`.
+For detailed setup notes (Prophet venv, TimesFM, forecasting methodology), see `docs/`. For a full walkthrough of the GDELT ETL pipeline, see [`docs/DATA_PIPELINE.md`](docs/DATA_PIPELINE.md).
 
 ---
 
@@ -206,9 +207,9 @@ This project was a collaborative effort across research design, data engineering
 
 | Team Member | Contributions |
 |---|---|
-| **Le Ngoc Bich Phuong** | Defined the research question and analytical framing; designed the storytelling flow and organised the dashboard logic with chart ideas. Implemented contrastive TF-IDF keyword framing and word cloud. Improved user-friendliness and interaction guidance across the dashboard. Deployed the Shiny app to shinyapps.io. Contributed to the final report. |
-| **Nguyen The An** | Ran forecasting models (ARIMA, Holt-Winters, Prophet, TimesFM) and evaluated results using MAE and RMSE. Created the initial Shiny interface and enabled local app execution. Implemented the AI Narrative Assistant chatbot. Prepared the presentation slides. Contributed to the final report. |
-| **Phan Nguyen Tuan Anh** | Queried, filtered, and cleaned the GDELT data via BigQuery. Generated the aggregate datasets required for the dashboard visualisations. Helped fix and refine the word cloud pipeline. Contributed to the final report. |
-| **Luong Tran Sang** | Built the main dashboard layout. Finalised the dashboard and chart ideas. Implemented and polished the dashboard graphs. Contributed to the final report. |
+| **Le Ngoc Bich Phuong** | Defined the research question and analytical framing; designed the storytelling flow and chart logic. Implemented contrastive TF-IDF keyword framing and the word cloud pipeline. Improved user-facing guidance, interaction notes, and overall dashboard usability. Deployed the final Shiny app and contributed to the report. |
+| **Nguyen The An** | Ran forecasting models including ARIMA, Holt-Winters, Prophet, and TimesFM; evaluated results using MAE and RMSE. Built the initial Shiny interface and local execution workflow. Implemented the AI Narrative Assistant chatbot and contributed to the presentation slides and report. |
+| **Phan Nguyen Tuan Anh** | Queried, filtered, and cleaned the GDELT data using BigQuery. Generated the event-level, daily, weekly, source, and ToneGap aggregate datasets used across the dashboard. Supported refinement of the word cloud data pipeline and contributed to the report. |
+| **Luong Tran Sang** | Built the main dashboard layout and integrated the visual sections into a coherent Shiny app. Implemented and polished the core dashboard graphs, including timeline, map, tone divergence, distribution, and coverage-intensity views. Helped finalize the dashboard concept and contributed to the report. |
 
 All components were iteratively reviewed and integrated as a team, with each member contributing across multiple areas throughout the project.
