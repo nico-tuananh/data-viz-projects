@@ -14,11 +14,9 @@
 
 # Project 1: Interactive Dashboard
 
-## Specifications
+## Project Overview
 
-### Project Overview
-
-This project is an interactive data visualization dashboard built with the Palmer Penguins dataset. It explores penguin species through habitat distribution, physical measurement comparisons, and machine learning-based pattern discovery.
+An interactive data visualization dashboard built with the Palmer Penguins dataset. It explores penguin species through habitat distribution, physical measurement comparisons, and machine learning-based pattern discovery.
 
 ### What the Dashboard Shows
 
@@ -32,122 +30,67 @@ This project is an interactive data visualization dashboard built with the Palme
 
 The dashboard uses the Palmer Penguins dataset, which contains penguin species, island, sex, and body measurement features.
 
-### Project Goal
-
-The goal of the project is to combine visual analysis, interactivity, and storytelling into a dashboard that helps users understand both the biological differences and the hidden structure within the penguin data.
-
 ## Running Instructions
 
-### Requirements
-- Python 3.10+ recommended
-
-### 1) Install dependencies
-Create and activate a virtual environment, then install packages:
+**Requirements:** Python 3.10+
 
 ```bash
+# Install dependencies
 python -m venv .venv
-# Windows PowerShell
-.\\.venv\\Scripts\\Activate.ps1
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r project1/requirements.txt
 
-pip install -r requirements.txt
-```
-
-### 2) Run the dashboard
-
-```bash
-python dashboard.py
-```
-
-Then open `http://127.0.0.1:8050/` in your browser.
-
-### (Optional) Regenerate the processed dataset
-If you want to export the cleaned dataset with derived features:
-
-```bash
-python preprocess.py
+# Run the dashboard  →  http://127.0.0.1:8050/
+python project1/dashboard.py
 ```
 
 ---
 
-# Project 2: Data Stories: Building Interactive Dashboards with Python Shiny
+# Project 2: Tariff Tensions, Narrative Divides
 
-## Data Collection and Preprocessing
+An interactive media-intelligence dashboard analysing how Western and Chinese media constructed asymmetric emotional narratives during the 2025 US–China tariff escalation.
 
-### Step 1: GCP Setup
+**Research question:** Do media systems merely report tariff escalation, or do they construct different emotional narratives around the same conflict?
 
-1. Create GCP project at https://console.cloud.google.com/projectcreate
-   - Note your project ID (shown below project name, e.g., `comp4010-project-2`)
-   - Or find existing project ID: click project dropdown → copy ID column
+**Stack:** Python Shiny · **Data:** GDELT v2 · **Window:** Feb 1 – Apr 30, 2025
 
-2. Enable BigQuery API at https://console.cloud.google.com/apis/library/bigquery.googleapis.com
+## Live App
 
-3. Create service account at https://console.cloud.google.com/iam-admin/serviceaccounts
-   - Name: `gdelt-reader`
-   - Roles: `BigQuery Job User`, `BigQuery Data Viewer`
-   - Create JSON key, download and store it to `project2/secrets/`
+**[https://lnbphuong.shinyapps.io/tariff-tensions/](https://lnbphuong.shinyapps.io/tariff-tensions/)**
 
-4. Create a `.env` file from the template:
-```bash
-cd project2
-cp .env.example .env
+## Repository Structure
+
 ```
-   Then edit `.env` to match your JSON file name and actual GCP project ID.
+project2/
+├── shiny_app/              # Dashboard app (Python Shiny)
+│   ├── app.py              # Shiny app object — entrypoint for deploy & shiny run
+│   ├── components/         # Charts, chatbot widget, layout helpers
+│   ├── utils/              # Data loading, TF-IDF analysis, DeepSeek client
+│   └── static/             # CSS and hero image
+├── data/                   # Precomputed datasets (no BigQuery needed to run)
+├── forecasting/            # Forecast models + precomputed outputs
+├── scripts/                # GDELT data collection pipeline (optional)
+├── docs/                   # Forecasting methodology and setup notes
+├── main.py                 # Dashboard launcher
+├── requirements.txt        # Full local dependencies
+└── requirements-deploy.txt # Deployment-only dependencies
+```
 
-### Step 2: Run Pipeline
+## Running Locally
 
-Run the series of commands below:
 ```bash
 cd project2
+python3 -m venv .venv
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-python setup_bigquery.py    # Verify GCP setup
-python data_collection.py   # BigQuery + scrape headlines + save outputs
+
+# (Optional) Enable the AI chatbot
+cp .env.example .env
+# Edit .env and add: DEEPSEEK_API_KEY=<your-key-here>
+# The dashboard runs fully without it — chatbot shows a fallback if the key is missing.
+
+# Launch  →  http://127.0.0.1:8004
+python main.py
 ```
 
-To scrape headlines onto existing data without re-querying BigQuery (~8–15 min):
-
-```bash
-python data_collection.py --scrape-only
-```
-
-### Step 3: Output Files
-
-The pipeline produces four dashboard-ready datasets in `project2/data/` (and auto-syncs parquets to `project2/backend/data/` for Railway):
-
-| File | Description |
-|------|-------------|
-| `gdelt_events_cleaned.parquet/csv` | Full cleaned event data with media group labels, event direction, tone categories |
-| `daily_aggregates.parquet/csv` | Daily metrics by media group (event counts, article totals, weighted tone) |
-| `weekly_aggregates.parquet/csv` | Weekly geo-aggregates by country for map visualizations |
-| `tone_gap_series.parquet/csv` | Daily ToneGap (Western − Chinese) for forecasting models |
-
-Key fields in the cleaned dataset:
-- `Date`, `DateStr`, `WeekStr` — Standardized date fields
-- `MediaGroup` — Western, Chinese, or Global/Other
-- `EventDirection` — USA→CHN or CHN→USA
-- `AvgTone`, `GoldsteinScale` — Sentiment metrics
-- `NumArticles`, `NumMentions` — Coverage intensity
-- `SourceDomain` — Extracted source domain for analysis
-- `ArticleTitle`, `ArticleSnippet` — Scraped from `SOURCEURL` (for word clouds)
-
-
-### Step 4: Run the Application (FastAPI & React)
-
-After completing the data collection pipeline, start the backend and frontend servers:
-
-#### 1) Run the Backend (FastAPI)
-Navigate to the `project2` directory, activate the virtual environment, and launch the Uvicorn server:
-```bash
-cd project2
-source .venv/bin/activate
-PYTHONPATH=. uvicorn backend.main:app --host 0.0.0.0 --port 8002 --reload
-```
-The backend API will start on port `8002`. You can check the server health status at `http://localhost:8002/api/health`.
-
-#### 2) Run the Frontend (React + Vite)
-Open a new terminal window, navigate to the frontend directory, install dependencies, and start the dev server:
-```bash
-cd project2/frontend
-npm install
-npm run dev -- --host 0.0.0.0 --port 5173
-```
-The frontend dev server will launch on port `5173`. Open `http://localhost:5173/` in your browser to view the dashboard.
+See `project2/README.md` for full setup details, deployment instructions, and team task allocation.

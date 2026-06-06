@@ -1,38 +1,51 @@
-# uv settings
-.venv/
-.python-version
-.vscode
-pyproject.toml
-uv.lock
-
-# Temporary files
+# ── Python ─────────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
-.DS_Store
-.ipynb_checkpoints/
-materials/
+.python-version
 
-# Data files (too large for git)
+# ── Virtual environments ────────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ── Secrets ────────────────────────────────────────────────────────────────────
+.env
+*.env
+project2/secrets/
+
+# ── Data files (large — precomputed copies live in project2/data/) ─────────────
 project2/data/*.csv
 project2/data/*.parquet
 
-# Secrets
-project2/secrets/
-
-# Environment variables
-.env
-project2/.env
-project2/docs
-
-.factory
-DESIGN.md
-project2/start-frontend.sh
-project2/start-backend.sh
-# Local env / model folders
-.env
-project2/.env
-project2/.venv-prophet/
-timesfm/
-__pycache__/
+# ── macOS ──────────────────────────────────────────────────────────────────────
 .DS_Store
+.AppleDouble
+.LSOverride
+
+# ── Editor ─────────────────────────────────────────────────────────────────────
+.vscode
+.idea/
+*.swp
+*.swo
+
+# ── Jupyter ────────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+
+# ── Build / packaging ──────────────────────────────────────────────────────────
+dist/
+build/
+*.egg-info/
+uv.lock
+pyproject.toml
+
+# ── Local tool config (not for the repo) ───────────────────────────────────────
+.antigravitycli/
+.factory
+.claude/
+
+# ── Misc stale entries kept for safety ────────────────────────────────────────
+materials/
+timesfm/
+node_modules/
