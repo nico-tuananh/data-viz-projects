@@ -116,7 +116,6 @@ def filter_by_controls(
     start: pd.Timestamp,
     end: pd.Timestamp,
     media_groups: list[str],
-    countries: list[str] | None = None,
     date_col: str = "Date",
 ) -> pd.DataFrame:
     if df.empty or date_col not in df:
@@ -127,8 +126,6 @@ def filter_by_controls(
     ].copy()
     if media_groups and "MediaGroup" in filtered:
         filtered = filtered[filtered["MediaGroup"].isin(media_groups)]
-    if countries and "ActionCountry" in filtered:
-        filtered = filtered[filtered["ActionCountry"].isin(countries)]
     return filtered
 
 

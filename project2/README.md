@@ -1,29 +1,53 @@
 # Project 2 — Tariff Tensions, Narrative Divides
 
 An interactive media-intelligence dashboard analysing how Western and Chinese media
-constructed asymmetric narratives during the 2025 US–China tariff escalation.
+constructed asymmetric emotional narratives during the 2025 US–China tariff escalation.
 
-**Data source:** GDELT v2 · **Window:** Feb 1 – Apr 30, 2025 · **Dashboard:** Python Shiny
+**Research question:** Do media systems merely report tariff escalation, or do they construct
+different emotional narratives around the same conflict?
+
+**Data source:** GDELT v2 · **Dataset window:** Feb 1 – Apr 30, 2025 · **Stack:** Python Shiny
 
 ---
 
-## Quick Start
+## Live App
 
-```bash
-# 1. Install dependencies
-pip install -r requirements.txt
+**[https://lnbphuong.shinyapps.io/tariff-tensions/](https://lnbphuong.shinyapps.io/tariff-tensions/)**
 
-# 2. Set up API key (optional — only needed for the AI chatbot)
-cp .env.example .env
-# Edit .env and paste your DeepSeek key:
-# DEEPSEEK_API_KEY=sk-...
+---
 
-# 3. Launch the dashboard  → Opens at http://127.0.0.1:8004
-python main.py
+## Dashboard Features
 
-# Custom port
-python main.py --port 8005 --reload
-```
+| Section | Description |
+|---|---|
+| 01 · Conflict Timeline | Daily event volume by media group; annotated peak spikes |
+| 02 · Narrative Spread | Pacific globe + flat world map of GDELT event geography; source-domain table |
+| 03 · Emotional Divergence | ToneGap time series; tone violin; tone-vs-coverage bubble chart |
+| 04 · Keyword Framing | Contrastive TF-IDF word cloud and ranked diverging bar chart |
+| 05 · Narrative Gap Forecasting | ARIMA / Holt-Winters / Prophet / TimesFM evaluated on a 14-day holdout |
+| Narrative Assistant | Optional floating AI chatbot powered by DeepSeek (requires API key) |
+
+All charts respond to the sidebar's **date range** and **media group** filters in real time.
+
+---
+
+## About the Data
+
+This dashboard uses **GDELT v2 event data** filtered to US–China tariff-war coverage.
+
+| Field | Meaning |
+|---|---|
+| One event row | One GDELT event record (a reported action between actors) |
+| `SOURCEURL` | One associated source URL stored for that event row |
+| `NumArticles` | Total article mentions related to that event (as reported by GDELT) |
+| `NumSources` | Number of sources that reported the event (as reported by GDELT) |
+| **Events KPI** | Count of event rows in the current filter |
+| **Articles KPI** | Sum of `NumArticles` across filtered events |
+| **Unique Sources KPI** | Count of distinct source domains extracted from `SOURCEURL` |
+| **ToneGap** | Difference in average tone between Western and Chinese media — used for narrative divergence analysis |
+
+Media group assignment is by outlet domain (Western / Chinese / Global-Other). Tone scores are
+machine-coded by GDELT (scale −100 to +100) and are relative, not human-annotated.
 
 ---
 
@@ -31,191 +55,160 @@ python main.py --port 8005 --reload
 
 ```
 project2/
-├── shiny_app/              # Main dashboard (Python Shiny)
-│   ├── app.py              # Entry point
-│   ├── components/         # UI components (charts, chatbot, layout)
-│   ├── utils/              # Data loading, transforms, text analysis
-│   └── static/             # CSS, images, word cloud PNG
+├── shiny_app/              # Dashboard app (Python Shiny)
+│   ├── app.py              # Shiny app object — entrypoint for deploy & shiny run
+│   ├── components/         # UI components: charts, chatbot widget, layout helpers
+│   ├── utils/              # Data loading, transforms, TF-IDF text analysis, DeepSeek client
+│   └── static/             # CSS and hero image
 │
-├── data/                   # Precomputed data (ready to use)
+├── data/                   # Precomputed datasets (committed — no BigQuery needed to run)
 │   ├── gdelt_events_cleaned.parquet
 │   ├── daily_aggregates.parquet
 │   ├── weekly_aggregates.parquet
 │   ├── tone_gap_series.parquet
 │   └── url_text_cache.parquet
 │
-├── forecasting/            # Forecast models and outputs
-│   ├── forecast_models.py  # ARIMA, Holt-Winters, Prophet, TimesFM
-│   ├── output/             # forecast_metrics.csv, forecast_predictions.csv
-│   └── images/             # Forecast plot PNGs
+├── forecasting/            # Forecast models and precomputed outputs
+│   ├── forecast_models.py
+│   ├── output/             # forecast_metrics.csv, forecast_predictions.csv, forecast_summary.txt
+│   └── images/             # Model forecast plots (ARIMA, Holt-Winters, Prophet, TimesFM)
 │
-├── scripts/                # Data pipeline scripts
-│   ├── data_collection.py  # GDELT BigQuery ETL
+├── scripts/                # Data collection and preprocessing (not needed to run the dashboard)
+│   ├── data_collection.py  # GDELT BigQuery ETL pipeline
 │   ├── url_scraper.py      # Article headline scraper
 │   └── setup_bigquery.py   # BigQuery credential check
 │
-├── docs/                   # Documentation
+├── docs/                   # Reports and setup notes
 │   ├── forecast_report.md  # Forecasting methodology & results
 │   └── timesfm_setup.md    # TimesFM environment setup guide
 │
-├── main.py                 # Dashboard launcher
-├── requirements.txt        # Full dependencies (dashboard + data pipeline)
-├── requirements-deploy.txt # Dashboard-only deps for shinyapps.io deployment
-├── requirements-model.txt  # Prophet venv dependencies
+├── main.py                 # Dashboard launcher (runs shiny_app/app.py via subprocess)
+├── requirements.txt        # Full local environment (dashboard + pipeline + models)
+├── requirements-deploy.txt # Lightweight dependencies for shinyapps.io deployment
 └── .env.example            # Environment variable template (safe to commit)
 ```
 
 ---
 
-## Data
+## Local Setup
 
-Precomputed data is stored in `data/` and committed to the repo — no BigQuery access needed for running the dashboard.
-
-To regenerate data from BigQuery:
 ```bash
-python scripts/setup_bigquery.py     # verify credentials
-python scripts/data_collection.py    # run ETL pipeline
+# 1. Navigate to project root
+cd project2
+
+# 2. Create and activate a virtual environment
+python3 -m venv .venv
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. (Optional) Set up the AI chatbot
+cp .env.example .env
+# Edit .env and add your DeepSeek key:
+#   DEEPSEEK_API_KEY=<your-key-here>
+# The dashboard runs fully without this — the chatbot shows a friendly fallback if the key is missing.
+
+# 5. Launch the dashboard  →  http://127.0.0.1:8004
+python main.py
+
+# Custom port or auto-reload
+python main.py --port 8005 --reload
 ```
 
-To regenerate forecast outputs:
+Alternatively, run directly with Shiny:
+
 ```bash
+shiny run shiny_app/app.py --port 8004
+```
+
+---
+
+## DeepSeek Chatbot (Optional)
+
+The Narrative Assistant chatbot is entirely optional. The dashboard is fully functional without it.
+
+- Copy `.env.example` to `.env` and add your `DEEPSEEK_API_KEY`.
+- **Never commit `.env`** — it is listed in `.gitignore`.
+- If the key is absent or invalid, the chatbot panel shows a graceful fallback message and all other dashboard features continue to work.
+- For deployment, set `DEEPSEEK_API_KEY` as a secure environment variable in the shinyapps.io dashboard (Settings → Environment Variables).
+
+---
+
+## Data Pipeline (optional — not needed to run the dashboard)
+
+Precomputed data in `data/` and `forecasting/output/` are committed to the repo. To regenerate from scratch:
+
+```bash
+# Verify BigQuery credentials
+python scripts/setup_bigquery.py
+
+# Collect and preprocess GDELT data
+python scripts/data_collection.py
+
+# Re-run forecast models
 python forecasting/forecast_models.py
 # Writes to forecasting/output/ and forecasting/images/
 ```
 
 ---
 
-## Dashboard Sections
+## Deployment
 
-| Section | Description |
-|---------|-------------|
-| 01 Conflict Timeline | Daily event volume by media group; annotated peak spikes |
-| 02 Narrative Spread | Globe and flat world map of event geography; source-domain table |
-| 03 Emotional Divergence | ToneGap time series; tone violin; tone-vs-coverage bubble chart |
-| 04 Keyword Framing | Contrastive TF-IDF word cloud and diverging bar chart |
-| 05 Narrative Gap Forecasting | ARIMA / Holt-Winters / Prophet / TimesFM on 14-day holdout |
-| Narrative Assistant | Floating AI chatbot for data-driven narrative queries |
+The app is deployed on [shinyapps.io](https://lnbphuong.shinyapps.io/tariff-tensions/).
+`main.py` is the deployment entrypoint. Precomputed data and forecast outputs are bundled with
+the deployment; no live data fetching is required at runtime.
+
+To redeploy:
+
+```bash
+rsconnect deploy shiny . \
+  --name lnbphuong \
+  --title "tariff-tensions" \
+  --requirements-file requirements-deploy.txt \
+  --exclude ".venv" \
+  --exclude "__pycache__" \
+  --exclude ".env" \
+  --exclude "*.pyc" \
+  --exclude "scripts/" \
+  --exclude "requirements-model.txt"
+```
+
+`.env` is explicitly excluded so no secrets are uploaded. The `DEEPSEEK_API_KEY` is configured
+separately as a secure environment variable in the shinyapps.io dashboard.
 
 ---
 
 ## Environment Variables
 
-Copy `.env.example` to `.env` and fill in your key. **Never commit `.env`** — it is listed in `.gitignore`.
+| Variable | Required | Description |
+|---|---|---|
+| `DEEPSEEK_API_KEY` | Optional | DeepSeek API key for the Narrative Assistant chatbot |
 
-```bash
-cp .env.example .env
-# then edit .env:
-DEEPSEEK_API_KEY=sk-your-actual-key-here
-```
-
-The app runs fully without this key — the chatbot will display a friendly fallback message if it is missing.
+Copy `.env.example` to `.env` locally. **Never commit `.env`.**
 
 ---
 
-## Deployment to shinyapps.io
+## Reproducibility
 
-> **⚠️ Never commit `.env` or paste your API key into any file that gets committed to git.**
-> The `.env` file is listed in `.gitignore` and is intentionally excluded from version control.
+- All data required to run the dashboard is precomputed and committed under `data/`.
+- Forecast outputs are precomputed and committed under `forecasting/output/`.
+- No BigQuery access or internet connection is needed to run the dashboard locally.
+- The data pipeline scripts (`scripts/`) are provided for full reproducibility but are not part of the normal run flow.
 
-### 1. Install rsconnect-python
-
-```bash
-pip install rsconnect-python
-```
-
-### 2. Authenticate with shinyapps.io
-
-Log in at [shinyapps.io](https://www.shinyapps.io) → Account → Tokens → Show → Copy the token command.
-It looks like:
-
-```bash
-rsconnect add \
-  --account <your-account-name> \
-  --name    <your-account-name> \
-  --token   <TOKEN> \
-  --secret  <SECRET>
-```
-
-Run that command once. Your credentials are stored locally in `~/.rsconnect-python/` (never in the repo).
-
-### 3. Deploy the app
-
-Run this from the **project2/** root directory:
-
-```bash
-rsconnect deploy shiny \
-  --name    <your-shinyapps-account-name> \
-  --title   "tariff-tensions" \
-  --app-dir . \
-  --requirements requirements-deploy.txt \
-  --exclude ".venv" \
-  --exclude "__pycache__" \
-  --exclude ".env" \
-  --exclude "*.pyc" \
-  --exclude "scripts/" \
-  --exclude "requirements-model.txt" \
-  shiny_app/app.py
-```
-
-**Why `--app-dir .` (project root)?**
-The dashboard's data loaders resolve paths relative to the project root
-(`data/`, `forecasting/output/`). Deploying from the root ensures those
-relative paths work identically in production and locally.
-
-**Why `requirements-deploy.txt`?**
-`requirements.txt` includes BigQuery and data-pipeline packages that are only
-needed for data regeneration — not for running the dashboard. Using
-`requirements-deploy.txt` keeps the shinyapps.io install fast and avoids
-potential build errors from heavy dependencies (Prophet, TimesFM, google-cloud).
-
-### 4. Set the DeepSeek API key securely on shinyapps.io
-
-After deploying, set the API key through the shinyapps.io web dashboard:
-
-1. Go to [shinyapps.io](https://www.shinyapps.io) → **Applications** → click your app
-2. Click **Settings** → **Environment Variables** (or **Vars**)
-3. Add a new variable:
-   - **Name:** `DEEPSEEK_API_KEY`
-   - **Value:** `sk-...` (your actual key)
-4. Click **Save** and then **Restart** the application
-
-> **✅ Verify:** shinyapps.io environment variables are stored securely on their
-> platform — they are NOT part of your deployed bundle and are NOT visible in
-> the source files. This is the correct and safe method.
->
-> **⚠️ To verify this is available:** log in to shinyapps.io → your app →
-> Settings tab and confirm you see an "Environment Variables" or "Vars" section.
-> If you do not see it, your plan tier may not support it — check
-> [shinyapps.io pricing](https://www.shinyapps.io/#pricing).
-
-### 5. Fallback behaviour (no API key)
-
-If `DEEPSEEK_API_KEY` is not set, the rest of the dashboard works normally.
-The chatbot panel will show:
-
-> ⚙️ **AI assistant is unavailable** — `DEEPSEEK_API_KEY` is not configured.
-
-No crash. No stack trace exposed to users.
-
-### 6. Re-deploying after changes
-
-```bash
-rsconnect deploy shiny \
-  --name    <your-shinyapps-account-name> \
-  --title   "tariff-tensions" \
-  --app-dir . \
-  --requirements requirements-deploy.txt \
-  --exclude ".venv" \
-  --exclude "__pycache__" \
-  --exclude ".env" \
-  --exclude "*.pyc" \
-  --exclude "scripts/" \
-  --exclude "requirements-model.txt" \
-  shiny_app/app.py
-```
-
-rsconnect will update the existing application in-place.
+For detailed setup notes (Prophet venv, TimesFM, forecasting methodology), see `docs/`.
 
 ---
 
-For detailed setup (Prophet venv, TimesFM, chatbot config), see `shiny_app/README.md`.
+## Team & Task Allocation
+
+This project was a collaborative effort across research design, data engineering, visualisation, and deployment.
+
+| Team Member | Contributions |
+|---|---|
+| **Le Ngoc Bich Phuong** | Defined the research question and analytical framing; designed the storytelling flow and organised the dashboard logic with chart ideas. Implemented contrastive TF-IDF keyword framing and word cloud. Improved user-friendliness and interaction guidance across the dashboard. Deployed the Shiny app to shinyapps.io. Contributed to the final report. |
+| **Nguyen The An** | Ran forecasting models (ARIMA, Holt-Winters, Prophet, TimesFM) and evaluated results using MAE and RMSE. Created the initial Shiny interface and enabled local app execution. Implemented the AI Narrative Assistant chatbot. Prepared the presentation slides. Contributed to the final report. |
+| **Phan Nguyen Tuan Anh** | Queried, filtered, and cleaned the GDELT data via BigQuery. Generated the aggregate datasets required for the dashboard visualisations. Helped fix and refine the word cloud pipeline. Contributed to the final report. |
+| **Luong Tran Sang** | Built the main dashboard layout. Finalised the dashboard and chart ideas. Implemented and polished the dashboard graphs. Contributed to the final report. |
+
+All components were iteratively reviewed and integrated as a team, with each member contributing across multiple areas throughout the project.

@@ -1,16 +1,14 @@
-"""
-Launcher for the US-China Tariff Dashboard (Shiny).
+"""Dashboard launcher — python main.py [--port N] [--reload]"""
+from pathlib import Path
+import sys
 
-Run:
-    python main.py              # launches dashboard on port 8004
-    python main.py --port 8005  # custom port
+PROJECT_ROOT = Path(__file__).resolve().parent
+SHINY_APP_DIR = PROJECT_ROOT / "shiny_app"
 
-Data pipeline:
-    python scripts/setup_bigquery.py       # verify BigQuery credentials
-    python scripts/data_collection.py      # collect + preprocess GDELT data
-    python forecasting/forecast_models.py  # run forecast models
-"""
+# Allow imports like: from components.charts import ...
+sys.path.insert(0, str(SHINY_APP_DIR))
 
+from shiny_app.app import app
 import argparse
 import subprocess
 import sys

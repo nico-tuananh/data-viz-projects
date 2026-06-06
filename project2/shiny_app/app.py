@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import tempfile
 from pathlib import Path
 
@@ -39,9 +40,6 @@ DATE_MIN, DATE_MAX = date_bounds(DATA.events)
 MEDIA_CHOICES = available_media(DATA.events)
 DEFAULT_KEYWORDS = framing_dataframe(DATA.events, 30) if not DATA.events.empty else pd.DataFrame()
 DEFAULT_CLOUD_TERMS = word_cloud_terms(DATA.events, 100) if not DATA.events.empty else pd.DataFrame()
-COUNTRY_CHOICES = []
-if not DATA.events.empty and "ActionCountry" in DATA.events:
-    COUNTRY_CHOICES = sorted(DATA.events["ActionCountry"].dropna().unique().tolist())
 FORECAST_MODELS = (
     sorted(DATA.forecast_predictions["Model"].dropna().unique().tolist())
     if not DATA.forecast_predictions.empty and "Model" in DATA.forecast_predictions
@@ -102,42 +100,6 @@ app_ui = ui.page_sidebar(
             selected="dark",
             inline=True,
         ),
-        ui.input_selectize(
-            "countries",
-            "Action countries",
-            choices=COUNTRY_CHOICES,
-            selected=[],
-            multiple=True,
-            options={"placeholder": "Optional country drilldown"},
-        ),
-        ui.hr(),
-        ui.input_radio_buttons(
-            "map_focus",
-            "Map view",
-            choices={"US-China": "US–China Focus", "Global": "Global Spread"},
-            selected="US-China",
-        ),
-        ui.input_select(
-            "keyword_top_n",
-            "Keyword top-k",
-            choices=[10, 12, 15, 20, 30],
-            selected=10,
-        ),
-        ui.input_checkbox_group(
-            "forecast_models",
-            "Forecast models",
-            choices=FORECAST_MODELS,
-            selected=FORECAST_MODELS,
-        ),
-        ui.div(
-            "Data: ",
-            ui.code(
-                str(DATA.data_dir.relative_to(DATA.data_dir.parents[1]))
-                if DATA.data_dir.exists()
-                else "missing"
-            ),
-            class_="data-note",
-        ),
         width=300,
         class_="sidebar-shell",
     ),
@@ -175,6 +137,61 @@ app_ui = ui.page_sidebar(
         ),
         # link_files so CSS can serve sibling static assets (images) correctly
         ui.include_css(APP_DIR / "static" / "styles.css", method="link_files"),
+        ui.tags.script(
+            """
+            (function() {
+              var SECTION_IDS = ['timeline', 'spread', 'divergence', 'framing', 'forecast'];
+
+              function initStoryNav() {
+                var links = document.querySelectorAll('.story-nav-link');
+                if (!links.length) { return; }
+
+                function setActive(id) {
+                  links.forEach(function(l) {
+                    var match = l.getAttribute('href') === '#' + id;
+                    l.classList.toggle('active', match);
+                  });
+                }
+
+                // Click → activate immediately (before scroll settles)
+                links.forEach(function(link) {
+                  link.addEventListener('click', function() {
+                    var href = link.getAttribute('href');
+                    if (href && href.startsWith('#')) {
+                      setActive(href.slice(1));
+                    }
+                  });
+                });
+
+                // IntersectionObserver → activate on scroll
+                // rootMargin keeps the detection zone between the sticky nav
+                // bottom (~48px) and the middle of the viewport.
+                var visible = new Set();
+                var observer = new IntersectionObserver(function(entries) {
+                  entries.forEach(function(e) {
+                    if (e.isIntersecting) { visible.add(e.target.id); }
+                    else                  { visible.delete(e.target.id); }
+                  });
+                  // Pick the topmost visible section in document order
+                  for (var i = 0; i < SECTION_IDS.length; i++) {
+                    if (visible.has(SECTION_IDS[i])) {
+                      setActive(SECTION_IDS[i]);
+                      return;
+                    }
+                  }
+                }, { rootMargin: '-48px 0px -48% 0px', threshold: 0 });
+
+                SECTION_IDS.forEach(function(id) {
+                  var el = document.getElementById(id);
+                  if (el) { observer.observe(el); }
+                });
+              }
+
+              document.addEventListener('DOMContentLoaded', function() { setTimeout(initStoryNav, 150); });
+              document.addEventListener('shiny:connected',   function() { setTimeout(initStoryNav, 150); });
+            })();
+            """
+        ),
     ),
 
     # ── Hero ─────────────────────────────────────────────────────────────────
@@ -216,20 +233,16 @@ app_ui = ui.page_sidebar(
                     class_="hero-question",
                 ),
                 ui.div("Dataset window: Feb 1 – Apr 30, 2025", class_="hero-date"),
-                ui.div(
-                    "Precomputed ETL and forecast outputs only. No live GDELT calls during demo.",
-                    class_="demo-lock",
-                ),
                 class_="hero-brief",
             ),
             class_="hero-grid",
         ),
         ui.div(
-            kpi_card("Events / articles", "kpi_events", "Filtered sample", "kpi-blue"),
+            kpi_card("Events", "kpi_events", "GDELT event records", "kpi-gray"),
+            kpi_card("Articles", "kpi_articles", "Total article mentions", "kpi-gray"),
             kpi_card("Unique sources", "kpi_sources", "News domains", "kpi-gray"),
             kpi_card("Western tone", "kpi_western", "Mean event tone", "kpi-blue"),
             kpi_card("Chinese tone", "kpi_chinese", "Mean event tone", "kpi-red"),
-            kpi_card("Tone gap", "kpi_gap", "Western − Chinese", "kpi-amber"),
             class_="kpi-grid",
         ),
         ui.output_ui("warning_banner"),
@@ -267,6 +280,7 @@ app_ui = ui.page_sidebar(
             "daily_volume",
             "500px",
             "feature-card",
+            tip="Hover for details · drag to zoom · double-click to reset · click legend to toggle groups",
         ),
     ),
 
@@ -296,8 +310,8 @@ app_ui = ui.page_sidebar(
                         "map_style",
                         None,
                         choices={
-                            "globe": "🌏  Globe · US–China",
-                            "flat":  "🗺  Flat World Map",
+                            "globe": "  🌏 Globe",
+                            "flat":  "  🗺 Flat World Map",
                         },
                         selected="globe",
                         inline=True,
@@ -306,6 +320,7 @@ app_ui = ui.page_sidebar(
                 ),
                 class_="chart-card-header map-card-header",
             ),
+            ui.output_ui("map_tip"),
             ui.div(output_widget("spread_map", height="560px"), class_="chart-stage"),
             class_="chart-card map-card",
         ),
@@ -360,12 +375,25 @@ app_ui = ui.page_sidebar(
         "the media-group filter does not apply to this chart.",
         "Watch zero-line crossings, extreme gaps, and whether tone shifts coincide with high-volume "
         "days. The shaded region shows which bloc is more positive at any moment.",
-        chart_card(
-            "ToneGap over time",
-            "Western weighted tone minus Chinese weighted tone · amber line = ToneGap",
-            "tone_gap",
-            "500px",
-            "feature-card",
+        ui.div(
+            ui.div(
+                ui.div(
+                    "Western weighted tone minus Chinese weighted tone · amber line = ToneGap",
+                    class_="chart-kicker",
+                ),
+                ui.h3("ToneGap over time"),
+                class_="chart-card-header",
+            ),
+            ui.p(
+                "Hover for daily Western/Chinese tone breakdown · drag to zoom · double-click to reset",
+                class_="chart-tip",
+            ),
+            ui.p(
+                "The media-group filter does not apply to this chart — ToneGap is precomputed from Western and Chinese media together.",
+                class_="chart-tip",
+            ),
+            ui.div(output_widget("tone_gap", height="500px"), class_="chart-stage"),
+            class_="chart-card feature-card",
         ),
         ui.layout_columns(
             chart_card(
@@ -373,12 +401,14 @@ app_ui = ui.page_sidebar(
                 "Violin/box: median, spread, and outliers per media group",
                 "tone_distribution",
                 "440px",
+                tip="Hover for group stats · drag to zoom · double-click to reset",
             ),
             chart_card(
                 "Tone vs coverage intensity",
                 "Each point = one media-group/day · x = article volume · y = avg tone · size = event volume",
                 "tone_intensity",
                 "460px",
+                tip="Hover for date detail · drag to zoom · double-click to reset",
             ),
             col_widths=[5, 7],
         ),
@@ -402,28 +432,42 @@ app_ui = ui.page_sidebar(
                 class_="chart-card-header",
             ),
             ui.div(
-                ui.p(
-                    "Larger and darker terms are more distinctive to that media group. "
-                    "Updates with sidebar filters.",
-                    class_="cloud-caption",
-                ),
                 ui.output_image("word_cloud", width="100%", height="auto"),
                 class_="word-cloud-wrap",
             ),
             class_="chart-card feature-card",
         ),
-        # Ranked bar chart as secondary
-        chart_card(
-            "Ranked TF-IDF framing terms",
-            "Higher score = more distinctive to that group vs the other side",
-            "keyword_framing",
-            "520px",
-            "feature-card",
-        ),
-        ui_card(
-            "Ranked framing phrases",
-            "Qualitative support from cleaned headlines",
-            "term_cards",
+        # Ranked bar chart — top-k control lives in the card header
+        ui.div(
+            ui.div(
+                ui.div(
+                    ui.div("Ranked bar chart", class_="chart-kicker"),
+                    ui.h3("Ranked TF-IDF framing terms"),
+                    class_="topk-card-title",
+                ),
+                ui.div(
+                    ui.input_select(
+                        "keyword_top_n",
+                        "Top-k terms",
+                        choices=[10, 12, 15, 20, 30],
+                        selected=10,
+                    ),
+                    class_="topk-control",
+                ),
+                class_="chart-card-header topk-card-header",
+            ),
+            ui.div(
+                ui.p(
+                    "Higher score = more distinctive to that group vs the other side",
+                    class_="chart-tip",
+                ),
+            ),
+            ui.p(
+                "Hover bars for exact scores and mention counts · drag to zoom · double-click to reset",
+                class_="chart-tip",
+            ),
+            ui.div(output_widget("keyword_framing", height="520px"), class_="chart-stage"),
+            class_="chart-card feature-card",
         ),
     ),
 
@@ -434,16 +478,39 @@ app_ui = ui.page_sidebar(
         "Narrative Gap Forecasting",
         "Does narrative divergence have short-term predictable structure?",
         "ARIMA, Holt-Winters, Prophet, and TimesFM outputs are evaluated on a 14-day holdout "
-        "window. Select models in the sidebar to compare.",
-        "Lower MAE/RMSE means the model tracked ToneGap more closely. The best model by MAE is "
-        "highlighted. The thick line is the observed ToneGap — forecasts try to match it.",
+        "window. Toggle models directly on the chart to compare.",
+        "MAE measures the average forecast error; RMSE penalises larger misses more strongly. "
+        "ARIMA achieves the lowest MAE (best average accuracy); TimesFM achieves the lowest RMSE "
+        "(best at avoiding large spikes). The Best MAE badge highlights ARIMA. "
+        "The thick line is the observed ToneGap — forecasts try to match it.",
         ui.output_ui("forecast_metric_cards"),
-        chart_card(
-            "Actual vs predicted ToneGap",
-            "14-day holdout evaluation · thick line = observed · dashed = forecast",
-            "forecast_plot",
-            "500px",
-            "feature-card",
+        # Forecast chart — model selector lives inside the card
+        ui.div(
+            ui.div(
+                ui.div(
+                    "14-day holdout evaluation · thick line = observed · dashed = forecast",
+                    class_="chart-kicker",
+                ),
+                ui.h3("Actual vs predicted ToneGap"),
+                class_="chart-card-header",
+            ),
+            ui.div(
+                ui.span("Compare models", class_="model-selector-label"),
+                ui.input_checkbox_group(
+                    "forecast_models",
+                    None,
+                    choices=FORECAST_MODELS,
+                    selected=FORECAST_MODELS,
+                    inline=True,
+                ),
+                class_="model-selector",
+            ),
+            ui.p(
+                "Checkboxes above add/remove models · click legend items to hide individual lines · hover for values · drag to zoom · double-click to reset",
+                class_="chart-tip",
+            ),
+            ui.div(output_widget("forecast_plot", height="500px"), class_="chart-stage"),
+            class_="chart-card feature-card",
         ),
         ui.div(
             insight_card(
@@ -478,10 +545,6 @@ def server(input, output, session):
         return list(input.media_groups() or [])
 
     @reactive.Calc
-    def selected_countries() -> list[str]:
-        return list(input.countries() or [])
-
-    @reactive.Calc
     def current_theme() -> str:
         return input.theme_mode() or "dark"
 
@@ -493,7 +556,6 @@ def server(input, output, session):
             start,
             end,
             selected_media(),
-            selected_countries(),
         )
 
     @reactive.Calc
@@ -516,7 +578,6 @@ def server(input, output, session):
             start == DATE_MIN
             and end == DATE_MAX
             and set(selected_media()) == set(MEDIA_CHOICES)
-            and not selected_countries()
         ):
             return DEFAULT_KEYWORDS
         return framing_dataframe(filtered_events(), int(input.keyword_top_n()))
@@ -528,20 +589,20 @@ def server(input, output, session):
             start == DATE_MIN
             and end == DATE_MAX
             and set(selected_media()) == set(MEDIA_CHOICES)
-            and not selected_countries()
         ):
             return DEFAULT_CLOUD_TERMS
         return word_cloud_terms(filtered_events(), 80)
+
+    # Fixed per-process path avoids accumulating temp files on every filter change.
+    _wc_path = Path(tempfile.gettempdir()) / f"shiny_wordcloud_{os.getpid()}.png"
 
     @render.image
     def word_cloud():
         png = word_cloud_chart(cloud_terms(), current_theme())
         if not png:
             return None
-        tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-        tmp.write(png)
-        tmp.flush()
-        return {"src": tmp.name, "alt": "Contrastive TF-IDF word cloud"}
+        _wc_path.write_bytes(png)
+        return {"src": str(_wc_path), "alt": "Contrastive TF-IDF word cloud"}
 
     @reactive.Calc
     def best_model_name() -> str | None:
@@ -554,8 +615,12 @@ def server(input, output, session):
     @render.text
     def kpi_events():
         events = filtered_events()
-        articles = int(events["NumArticles"].sum()) if "NumArticles" in events and not events.empty else 0
-        return f"{len(events):,} / {articles:,}"
+        return f"{len(events):,}"
+
+    @render.text
+    def kpi_articles():
+        events = filtered_events()
+        return f"{int(events['NumArticles'].sum()):,}" if "NumArticles" in events and not events.empty else "0"
 
     @render.text
     def kpi_sources():
@@ -582,12 +647,6 @@ def server(input, output, session):
         )
         return "n/a" if pd.isna(value) else f"{value:.2f}"
 
-    @render.text
-    def kpi_gap():
-        gap = filtered_tone_gap()
-        value = gap["ToneGap"].mean() if not gap.empty and "ToneGap" in gap else float("nan")
-        return "n/a" if pd.isna(value) else f"{value:.2f}"
-
     @render.ui
     def warning_banner():
         if not DATA.warnings:
@@ -611,7 +670,7 @@ def server(input, output, session):
     def spread_map():
         if (input.map_style() or "globe") == "flat":
             return narrative_flat_map(filtered_events(), current_theme())
-        return narrative_map(filtered_events(), input.map_focus(), current_theme())
+        return narrative_map(filtered_events(), current_theme())
 
     @render.ui
     def spread_insight():
@@ -627,14 +686,14 @@ def server(input, output, session):
                 "Compare with the Globe view for the US–China bilateral focus."
             )
         else:
-            label = "What to notice — Globe · US–China Focus"
+            label = "What to notice — Globe"
             body = (
-                "The Pacific-centred orthographic view places China on the left hemisphere "
-                "and the US on the right, making bilateral coverage geography immediately "
-                "readable. Look for the density difference between Western (blue) and "
-                "Chinese (red) clusters — where they overlap, the same events are being "
-                "narrated with measurably different tone. Switch to Flat World Map for a "
-                "full-world overview."
+                "The globe view shows the full geographic spread of tariff-war coverage. "
+                "Western (blue) coverage concentrates in North America and Western Europe; "
+                "Chinese (red) anchors in East Asia and the Pacific Rim. "
+                "Look for the density difference between the two blocs — where they overlap, "
+                "the same events are being narrated with measurably different tone. "
+                "Switch to Flat World Map for a full-world overview."
             )
         return ui.div(
             ui.div(
@@ -644,6 +703,15 @@ def server(input, output, session):
             ),
             class_="map-insight-card",
         )
+
+    @render.ui
+    def map_tip():
+        style = input.map_style() or "globe"
+        if style == "flat":
+            text = "Hover markers for detail · drag to zoom · double-click to reset"
+        else:
+            text = "Drag to rotate the globe · scroll to zoom · double-click to reset · hover markers for detail"
+        return ui.p(text, class_="chart-tip")
 
     @render_plotly
     def tone_gap():
@@ -660,40 +728,6 @@ def server(input, output, session):
     @render_widget
     def keyword_framing():
         return keyword_chart(keyword_terms(), int(input.keyword_top_n()), current_theme())
-
-    @render.ui
-    def term_cards():
-        terms = cloud_terms()
-        if terms.empty:
-            return ui.div(
-                "No headline phrase terms available for the current filter.",
-                class_="empty-note",
-            )
-        cards = []
-        for group in ["Western", "Chinese"]:
-            group_terms = (
-                terms[terms["group"] == group]
-                .sort_values("score", ascending=False)
-                .head(10)
-            )
-            cards.append(
-                ui.div(
-                    ui.div(
-                        group,
-                        class_=f"term-column-title {group.lower().replace('/', '-').replace(' ', '-')}",
-                    ),
-                    *[
-                        ui.div(
-                            ui.span(row["term"], class_="term-text"),
-                            ui.span(f"{row['score']:.3f}", class_="term-score"),
-                            class_="term-row",
-                        )
-                        for _, row in group_terms.iterrows()
-                    ],
-                    class_="term-column",
-                )
-            )
-        return ui.div(*cards, class_="term-card-grid")
 
     @render_widget
     def forecast_plot():
@@ -790,15 +824,13 @@ def server(input, output, session):
         if not question:
             return
 
-        # 1. Show user message immediately
         msgs = list(chat_history.get())
         msgs.append({"role": "user", "content": question})
         chat_history.set(msgs)
 
-        # 2. Clear text input
         ui.update_text("chat_input", value="", session=session)
 
-        # 3. Try local answer first (instant, no API)
+        # Try local answer first (instant, no API call)
         local = get_local_answer(question)
         if local:
             msgs = list(chat_history.get())
@@ -806,7 +838,7 @@ def server(input, output, session):
             chat_history.set(msgs)
             return
 
-        # 4. Show thinking indicator, then call DeepSeek in a thread
+
         is_loading.set(True)
         await asyncio.sleep(0)  # yield so the UI renders the loading state
 
@@ -816,7 +848,6 @@ def server(input, output, session):
             date_start     = selected_dates()[0],
             date_end       = selected_dates()[1],
             media_groups   = selected_media(),
-            countries      = selected_countries(),
             forecast_metrics = DATA.forecast_metrics,
         )
 

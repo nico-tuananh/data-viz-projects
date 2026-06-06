@@ -64,8 +64,10 @@ Icon?
 /tmp/
 
 # ── rsconnect (deployment cache — does NOT contain secrets) ────────────────────
-# Uncomment the next line if you want to re-enter your account on every deploy:
-# rsconnect-python/
+rsconnect-python/
+
+# ── Local tool config ──────────────────────────────────────────────────────────
+.claude/
 
 # ── Node (not used here, safety net) ──────────────────────────────────────────
 node_modules/

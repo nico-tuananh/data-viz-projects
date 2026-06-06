@@ -377,22 +377,6 @@ def compute_distinctive_phrases(
     return sorted(results, key=lambda item: item["score"], reverse=True)[:top_n]
 
 
-def framing_dataframe(df: pd.DataFrame, top_n: int) -> pd.DataFrame:
-    rows = []
-    for group, other, sign in [("Western", "Chinese", 1), ("Chinese", "Western", -1)]:
-        group_count = 0
-        for item in compute_distinctive_phrases(df, group, other, top_n=top_n * 3):
-            if item["type"] != "unigram":
-                continue
-            item = item.copy()
-            item["signed_score"] = item["score"] * sign
-            rows.append(item)
-            group_count += 1
-            if group_count >= top_n:
-                break
-    return pd.DataFrame(rows)
-
-
 def _is_wordcloud_noise(item: dict) -> bool:
     term = item["term"].lower()
     if item["type"] == "unigram":
@@ -403,6 +387,38 @@ def _is_wordcloud_noise(item: dict) -> bool:
     # journalist bylines, timestamp fragments, and French tokens that leaked
     # in via sliding-window n-gram generation.
     return any(w in _WC_NOISE_UNIGRAMS for w in term.split())
+
+
+def _noise_filtered_candidates(
+    df: pd.DataFrame,
+    group: str,
+    other: str,
+    pool_n: int,
+) -> tuple[list[dict], dict[str, float]]:
+    """
+    Shared pipeline used by both word_cloud_terms() and framing_dataframe().
+
+    Returns (candidates, unigram_scores) after noise filtering.
+    The three dedup passes are intentionally left to the caller so each
+    function can apply them to its own final selection.
+    """
+    candidates = [
+        t for t in compute_distinctive_phrases(df, group, other, top_n=pool_n)
+        if not _is_wordcloud_noise(t)
+    ]
+    unigram_scores = {t["term"]: t["score"] for t in candidates if t["type"] == "unigram"}
+    return candidates, unigram_scores
+
+
+def _apply_dedup_passes(
+    selection: list[dict],
+    unigram_scores: dict[str, float],
+) -> list[dict]:
+    """Apply the three deduplication passes in order."""
+    selection = _deduplicate_by_entity(selection, unigram_scores, max_per_entity=2)
+    selection = _suppress_entity_fragments(selection)
+    selection = _suppress_subphrase_bigrams(selection)
+    return selection
 
 
 def word_cloud_terms(df: pd.DataFrame, top_n: int = 80) -> pd.DataFrame:
@@ -426,14 +442,9 @@ def word_cloud_terms(df: pd.DataFrame, top_n: int = 80) -> pd.DataFrame:
 
     rows: list[dict] = []
     for group, other in [("Western", "Chinese"), ("Chinese", "Western")]:
-        # Use a large pool so every tier has enough candidates after noise filtering.
-        candidates = [
-            t for t in compute_distinctive_phrases(df, group, other, top_n=top_n * 8)
-            if not _is_wordcloud_noise(t)
-        ]
-
-        # Unigram score lookup for anchor-based entity deduplication.
-        unigram_scores = {t["term"]: t["score"] for t in candidates if t["type"] == "unigram"}
+        candidates, unigram_scores = _noise_filtered_candidates(
+            df, group, other, pool_n=top_n * 8
+        )
 
         unigrams = [t for t in candidates if t["type"] == "unigram"]
         bigrams  = [t for t in candidates if t["type"] == "bigram"]
@@ -453,20 +464,33 @@ def word_cloud_terms(df: pd.DataFrame, top_n: int = 80) -> pd.DataFrame:
             )
             taken.extend(extras[:shortfall])
 
-        # Pass 1 — anchor-based entity dedup: collapse score-dominated variants
-        # of the same entity (e.g. trump / president trump → trump + trump tariffs).
-        taken = _deduplicate_by_entity(taken, unigram_scores, max_per_entity=2)
-
-        # Pass 2 — canonical fragment suppression: remove isolated component
-        # unigrams of known multi-token named entities when the full phrase is
-        # present (e.g. elon + musk → elon musk; hong + kong → hong kong).
-        taken = _suppress_entity_fragments(taken)
-
-        # Pass 3 — bigram subphrase suppression: remove bigrams that are
-        # contiguous sub-sequences of a higher/equal-scoring trigram already
-        # in the set (e.g. "communist party" removed by "chinese communist party").
-        taken = _suppress_subphrase_bigrams(taken)
-
+        taken = _apply_dedup_passes(taken, unigram_scores)
         rows.extend(taken)
 
     return pd.DataFrame(rows) if rows else pd.DataFrame()
+
+
+def framing_dataframe(df: pd.DataFrame, top_n: int) -> pd.DataFrame:
+    """
+    Ranked TF-IDF terms for the diverging bar chart.
+
+    Uses the same noise-filtered candidate pool and deduplication passes as
+    word_cloud_terms() so both visuals draw from an identical cleaned term set.
+    Includes unigrams, bigrams, and trigrams (not unigrams only).
+    """
+    rows: list[dict] = []
+    for group, other, sign in [("Western", "Chinese", 1), ("Chinese", "Western", -1)]:
+        candidates, unigram_scores = _noise_filtered_candidates(
+            df, group, other, pool_n=top_n * 8
+        )
+        # Pre-select a generous window before dedup to give the passes enough
+        # context (dedup can only remove, never add terms).
+        pre = sorted(candidates, key=lambda t: -t["score"])[: top_n * 3]
+        selection = _apply_dedup_passes(pre, unigram_scores)
+        # Final top_n by score after dedup.
+        selection = sorted(selection, key=lambda t: -t["score"])[:top_n]
+        for item in selection:
+            item = item.copy()
+            item["signed_score"] = item["score"] * sign
+            rows.append(item)
+    return pd.DataFrame(rows)
