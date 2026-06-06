@@ -164,6 +164,7 @@ def daily_volume_chart(daily: pd.DataFrame, theme_mode: str = "dark") -> go.Figu
     if daily.empty:
         return _empty_figure("No daily event data for the selected filters.", 500, theme_mode)
     daily = daily.sort_values("Date").copy()
+    daily["Date"] = daily["Date"].dt.strftime("%Y-%m-%d")
     theme = THEME_STYLES[theme_mode]
     fig = go.Figure()
     for group, group_df in daily.groupby("MediaGroup"):
@@ -206,7 +207,7 @@ def daily_volume_chart(daily: pd.DataFrame, theme_mode: str = "dark") -> go.Figu
     return apply_layout(fig, height=500, theme_mode=theme_mode)
 
 
-def narrative_map(events: pd.DataFrame, focus: str, theme_mode: str = "dark") -> go.Figure:
+def narrative_map(events: pd.DataFrame, theme_mode: str = "dark") -> go.Figure:
     geo = geo_points(events)
     required = {"ActionGeo_Lat", "ActionGeo_Long", "MediaGroup", "ActionCountry", "NumArticles", "AvgTone", "Events"}
     if geo.empty or not required.issubset(geo.columns):
@@ -258,19 +259,11 @@ def narrative_map(events: pd.DataFrame, focus: str, theme_mode: str = "dark") ->
             ),
         ))
 
-    if focus == "US-China":
-        # Pacific-centered orthographic: lon=160 puts China ~40° left, US ~80° right
-        geo_layout = dict(
-            projection_type="orthographic",
-            projection_rotation=dict(lat=18, lon=160, roll=0),
-            projection_scale=1.05,
-        )
-    else:
-        geo_layout = dict(
-            projection_type="natural earth",
-            projection_scale=1.0,
-            center=dict(lon=10, lat=15),
-        )
+    geo_layout = dict(
+        projection_type="orthographic",
+        projection_rotation=dict(lat=15, lon=10, roll=0),
+        projection_scale=1.05,
+    )
 
     fig.update_geos(
         showland=True,
@@ -461,7 +454,17 @@ def tone_gap_chart(tone_gap: pd.DataFrame, theme_mode: str = "dark") -> go.Figur
             bordercolor=theme["annotation_border"],
             borderpad=4,
         )
-    fig.update_layout(xaxis_title="", yaxis_title="Western tone - Chinese tone")
+    note_color = "rgba(219,234,254,0.52)" if theme_mode == "dark" else "rgba(15,23,42,0.42)"
+    fig.add_annotation(
+        xref="paper", yref="paper",
+        x=0, y=-0.13,
+        text="Note: Line breaks mark dates where ToneGap could not be computed because one media side had no valid tone records.",
+        showarrow=False,
+        font=dict(size=13, color=note_color),
+        xanchor="left",
+        yanchor="top",
+    )
+    fig.update_layout(xaxis_title="", yaxis_title="Western tone - Chinese tone", margin=dict(b=70))
     return apply_layout(fig, height=500, theme_mode=theme_mode)
 
 
@@ -560,9 +563,12 @@ def keyword_chart(keywords: pd.DataFrame, top_n: int, theme_mode: str = "dark") 
 def forecast_chart(predictions: pd.DataFrame, models: list[str], best_model: str | None = None, theme_mode: str = "dark") -> go.Figure:
     if predictions.empty:
         return _empty_figure("Forecast predictions unavailable. Regenerate model output first.", 500, theme_mode)
-    selected = predictions[predictions["Model"].isin(models)] if models else predictions.iloc[0:0]
+    selected = predictions[predictions["Model"].isin(models)].copy() if models else predictions.iloc[0:0].copy()
     if selected.empty:
         return _empty_figure("Select at least one forecast model in the sidebar.", 500, theme_mode)
+    # Convert datetime64 to string so Plotly renders readable dates instead of nanosecond ints
+    if pd.api.types.is_datetime64_any_dtype(selected["Date"]):
+        selected["Date"] = selected["Date"].dt.strftime("%Y-%m-%d")
     actual = selected[["Date", "Actual"]].drop_duplicates("Date").sort_values("Date")
     theme = THEME_STYLES[theme_mode]
     fig = go.Figure()
@@ -622,4 +628,5 @@ def forecast_chart(predictions: pd.DataFrame, models: list[str], best_model: str
 
     fig.add_hline(y=0, line_dash="dot", line_color=theme["baseline"], line_width=0.8)
     fig.update_layout(xaxis_title="Date", yaxis_title="ToneGap (Western − Chinese)")
+    fig.update_xaxes(type="date", tickformat="%b %d")
     return apply_layout(fig, height=500, theme_mode=theme_mode, bottom=90)

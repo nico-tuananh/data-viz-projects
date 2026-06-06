@@ -14,14 +14,12 @@ def build_context(
     date_start: pd.Timestamp,
     date_end: pd.Timestamp,
     media_groups: list[str],
-    countries: list[str],
     forecast_metrics: pd.DataFrame,
 ) -> str:
     lines: list[str] = [
         "=== ACTIVE FILTERS ===",
         f"Date range       : {date_start.date()} → {date_end.date()}",
         f"Media groups     : {', '.join(media_groups) if media_groups else 'none selected'}",
-        f"Country filter   : {', '.join(countries) if countries else 'none (all countries)'}",
         "",
         "=== EVENT DATA SUMMARY ===",
     ]

@@ -1,5 +1,5 @@
 Forecast evaluation summary
-Input series: /home/adam/projects/data-viz-projects/project2/data/tone_gap_series.csv
+Input series: data/tone_gap_series.csv
 Rows: 89 | Missing ToneGap values imputed: 11
 Train rows: 75 | Test rows: 14
 

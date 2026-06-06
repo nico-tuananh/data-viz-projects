@@ -1,13 +1,4 @@
-"""DeepSeek API client.
-
-SECURITY: The API key is loaded from the DEEPSEEK_API_KEY environment variable
-only.  It is NEVER hardcoded here.  Add the key to a .env file in the project
-root (two directories above this file):
-
-    DEEPSEEK_API_KEY=sk-...
-
-The .env file is listed in .gitignore and must not be committed.
-"""
+"""DeepSeek API client — key loaded from DEEPSEEK_API_KEY env var only."""
 from __future__ import annotations
 
 import os

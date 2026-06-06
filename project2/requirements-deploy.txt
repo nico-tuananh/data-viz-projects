@@ -4,12 +4,13 @@
 #
 # To deploy:
 #   pip install rsconnect-python
-#   rsconnect deploy shiny \
-#       --name <your-shinyapps-account> \
+#   rsconnect deploy shiny . \
+#       --name lnbphuong \
 #       --title "tariff-tensions" \
-#       --app-dir . \
-#       --requirements requirements-deploy.txt \
-#       shiny_app/app.py
+#       --requirements-file requirements-deploy.txt \
+#       --exclude ".venv" --exclude "__pycache__" \
+#       --exclude ".env" --exclude "*.pyc" \
+#       --exclude "scripts/" --exclude "requirements-model.txt"
 
 shiny>=1.6.0
 shinywidgets>=0.8.0
