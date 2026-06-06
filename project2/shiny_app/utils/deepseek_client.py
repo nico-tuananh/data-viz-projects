@@ -149,9 +149,11 @@ def call_deepseek(
     api_key = os.environ.get("DEEPSEEK_API_KEY", "").strip()
     if not api_key:
         return (
-            "⚙️ **DeepSeek API key is not configured.**\n\n"
-            "Add `DEEPSEEK_API_KEY=sk-...` to a `.env` file in the project root, "
-            "then restart the Shiny app."
+            "⚙️ **AI assistant is unavailable** — `DEEPSEEK_API_KEY` is not configured.\n\n"
+            "If you are running locally: add `DEEPSEEK_API_KEY=sk-...` to a `.env` file "
+            "in the project root and restart the app.\n\n"
+            "If this is the deployed version: the API key needs to be set as an environment "
+            "variable in the shinyapps.io dashboard settings."
         )
 
     messages = [
