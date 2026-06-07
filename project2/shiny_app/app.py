@@ -156,67 +156,74 @@ app_ui = ui.page_sidebar(
             })();
             """
         ),
-        # link_files so CSS can serve sibling static assets (images) correctly
-        ui.include_css(APP_DIR / "static" / "styles.css", method="link_files"),
+        # static_assets on App() already serves the whole static/ directory, so
+        # a plain <link> tag with a version suffix is sufficient and busts any
+        # browser cache that held an older copy of the stylesheet.
+        ui.tags.link(rel="stylesheet", href="styles.css?v=3"),
         ui.tags.script(
             """
-            (function() {
+            (function () {
               var SECTION_IDS = ['timeline', 'spread', 'divergence', 'framing', 'forecast'];
-              var _initialized = false;
 
-              function initStoryNav() {
-                if (_initialized) return;
-                var links = document.querySelectorAll('.story-nav-link');
-                if (!links.length) return;
-                _initialized = true;
+              // After a click, suppress scroll-spy for 1.2 s so the click-set active
+              // state is not overridden while the scroll animation is in flight.
+              var _clickLocked = false;
+              var _lockTimer   = null;
 
-                function setActive(id) {
-                  links.forEach(function(l) {
-                    l.classList.toggle('active', l.getAttribute('href') === '#' + id);
-                  });
-                }
-
-                // Click → activate immediately (before scroll settles)
-                links.forEach(function(link) {
-                  link.addEventListener('click', function() {
-                    var href = link.getAttribute('href');
-                    if (href && href.startsWith('#')) setActive(href.slice(1));
-                  });
+              function setActive(id) {
+                document.querySelectorAll('.story-nav-link').forEach(function (l) {
+                  l.classList.toggle('active', l.getAttribute('href') === '#' + id);
                 });
-
-                // Measure the sticky nav height once; used as the trigger threshold.
-                // getBoundingClientRect() is viewport-relative, so this works whether
-                // the scroll container is .main (bslib sidebar) or the window.
-                var navEl = document.querySelector('.story-nav');
-                var navH = navEl ? navEl.offsetHeight + 4 : 62;
-
-                function updateActive() {
-                  var active = null;
-                  // Walk sections bottom-to-top; the last one whose top edge has
-                  // passed the nav bottom is the currently active section.
-                  for (var i = SECTION_IDS.length - 1; i >= 0; i--) {
-                    var el = document.getElementById(SECTION_IDS[i]);
-                    if (!el) continue;
-                    if (el.getBoundingClientRect().top <= navH + 2) {
-                      active = SECTION_IDS[i];
-                      break;
-                    }
-                  }
-                  if (active) setActive(active);
-                }
-
-                // Attach to whichever element actually scrolls:
-                // bslib's page_sidebar makes .main the scroll container; fall
-                // back to window if .main is not overflowing.
-                var mainEl = document.querySelector('.bslib-sidebar-layout>.main');
-                var scrollEl = (mainEl && mainEl.scrollHeight > mainEl.clientHeight)
-                  ? mainEl : window;
-                scrollEl.addEventListener('scroll', updateActive, { passive: true });
-                updateActive();
               }
 
-              document.addEventListener('DOMContentLoaded', function() { setTimeout(initStoryNav, 200); });
-              document.addEventListener('shiny:connected',   function() { setTimeout(initStoryNav, 400); });
+              // ── Click: document-level delegation ──────────────────────────────
+              // Delegating to document means this works even if Shiny re-renders
+              // parts of the DOM after this script runs — no need to re-attach.
+              document.addEventListener('click', function (e) {
+                var el = e.target;
+                for (var i = 0; i < 3; i++) {
+                  if (!el || el === document) break;
+                  if (el.classList && el.classList.contains('story-nav-link')) {
+                    var href = el.getAttribute('href');
+                    if (href && href.startsWith('#')) {
+                      setActive(href.slice(1));
+                      _clickLocked = true;
+                      clearTimeout(_lockTimer);
+                      _lockTimer = setTimeout(function () { _clickLocked = false; }, 1200);
+                    }
+                    break;
+                  }
+                  el = el.parentElement;
+                }
+              }, false);
+
+              // ── Scroll-spy ─────────────────────────────────────────────────────
+              // capture:true catches scroll events from ANY element in the tree —
+              // window, .bslib-sidebar-layout>.main, or anything else — without
+              // needing to detect which container scrolls at initialisation time.
+              // getBoundingClientRect() is always viewport-relative, so the
+              // threshold comparison works correctly in all scroll configurations.
+              function updateActive() {
+                if (_clickLocked) return;
+                var navEl = document.querySelector('.story-nav');
+                var threshold = navEl ? navEl.getBoundingClientRect().bottom + 2 : 64;
+                var active = null;
+                for (var i = SECTION_IDS.length - 1; i >= 0; i--) {
+                  var section = document.getElementById(SECTION_IDS[i]);
+                  if (section && section.getBoundingClientRect().top <= threshold) {
+                    active = SECTION_IDS[i];
+                    break;
+                  }
+                }
+                if (active) setActive(active);
+              }
+
+              document.addEventListener('scroll', updateActive, { passive: true, capture: true });
+
+              // ── Initial highlight after Shiny has rendered ─────────────────────
+              document.addEventListener('DOMContentLoaded', function () { setTimeout(updateActive, 150); });
+              document.addEventListener('shiny:connected',  function () { setTimeout(updateActive, 500); });
+              document.addEventListener('shiny:idle',       function () { updateActive(); });
             })();
             """
         ),

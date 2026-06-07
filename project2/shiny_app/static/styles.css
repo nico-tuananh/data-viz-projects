@@ -139,6 +139,9 @@ a {
 
 .bslib-sidebar-layout>.main {
   padding-top: 0;
+  /* Ensure anchor navigation smoothly scrolls .main (the real scroll container
+     in bslib page_sidebar) rather than the root window. */
+  scroll-behavior: smooth;
 }
 
 /* ── Sidebar ───────────────────────────────────────────────────────────── */
