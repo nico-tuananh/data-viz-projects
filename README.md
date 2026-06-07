@@ -66,14 +66,15 @@ project2/
 │   ├── app.py              # Shiny app object — entrypoint for deploy & shiny run
 │   ├── components/         # Charts, chatbot widget, layout helpers
 │   ├── utils/              # Data loading, TF-IDF analysis, DeepSeek client
-│   └── static/             # CSS and hero image
+│   └── static/             # CSS, hero image, and VinUni logo
 ├── data/                   # Precomputed datasets (no BigQuery needed to run)
 ├── forecasting/            # Forecast models + precomputed outputs
 ├── scripts/                # GDELT data collection pipeline (optional)
 ├── docs/                   # Forecasting methodology, setup notes, and data pipeline docs
 ├── main.py                 # Dashboard launcher
 ├── requirements.txt        # Full local dependencies
-└── requirements-deploy.txt # Deployment-only dependencies
+├── requirements-deploy.txt # Deployment-only dependencies
+└── requirements-model.txt  # Prophet venv dependencies
 ```
 
 ## Running Locally

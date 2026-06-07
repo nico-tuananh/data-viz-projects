@@ -16,8 +16,6 @@ MODEL_OUTPUT_DIR = PROJECT_ROOT / "forecasting" / "output"
 @dataclass(frozen=True)
 class DashboardData:
     events: pd.DataFrame
-    daily: pd.DataFrame
-    weekly: pd.DataFrame
     tone_gap: pd.DataFrame
     forecast_metrics: pd.DataFrame
     forecast_predictions: pd.DataFrame
@@ -55,18 +53,6 @@ def load_dashboard_data() -> DashboardData:
     if events.empty:
         warnings.append("Missing gdelt_events_cleaned data.")
 
-    daily = _read_table(data_dir / "daily_aggregates.parquet", ["Date"])
-    if daily.empty:
-        daily = _read_table(data_dir / "daily_aggregates.csv", ["Date"])
-    if daily.empty:
-        warnings.append("Missing daily_aggregates data.")
-
-    weekly = _read_table(data_dir / "weekly_aggregates.parquet", ["WeekStart"])
-    if weekly.empty:
-        weekly = _read_table(data_dir / "weekly_aggregates.csv", ["WeekStart"])
-    if weekly.empty:
-        warnings.append("Missing weekly_aggregates data.")
-
     tone_gap = _read_table(data_dir / "tone_gap_series.parquet", ["Date"])
     if tone_gap.empty:
         tone_gap = _read_table(data_dir / "tone_gap_series.csv", ["Date"])
@@ -78,14 +64,12 @@ def load_dashboard_data() -> DashboardData:
     if metrics.empty or predictions.empty:
         warnings.append("Missing forecast output files; forecasting charts will show a message.")
 
-    for df in (events, daily, weekly, tone_gap):
+    for df in (events, tone_gap):
         if "MediaGroup" in df.columns:
             df["MediaGroup"] = df["MediaGroup"].fillna("Unknown")
 
     return DashboardData(
         events=events,
-        daily=daily,
-        weekly=weekly,
         tone_gap=tone_gap,
         forecast_metrics=metrics,
         forecast_predictions=predictions,
@@ -104,6 +88,15 @@ def available_media(events: pd.DataFrame) -> list[str]:
     return present + extras
 
 
+def available_directions(events: pd.DataFrame) -> list[str]:
+    preferred = ["USA→CHN", "CHN→USA"]
+    if events.empty or "EventDirection" not in events:
+        return preferred
+    present = [d for d in preferred if d in set(events["EventDirection"].dropna())]
+    extras = sorted(set(events["EventDirection"].dropna()) - set(preferred))
+    return present + extras
+
+
 def date_bounds(events: pd.DataFrame) -> tuple[pd.Timestamp, pd.Timestamp]:
     if events.empty or "Date" not in events:
         fallback_start = pd.Timestamp("2025-02-01")
@@ -116,6 +109,7 @@ def filter_by_controls(
     start: pd.Timestamp,
     end: pd.Timestamp,
     media_groups: list[str],
+    event_directions: list[str] | None = None,
     date_col: str = "Date",
 ) -> pd.DataFrame:
     if df.empty or date_col not in df:
@@ -126,6 +120,8 @@ def filter_by_controls(
     ].copy()
     if media_groups and "MediaGroup" in filtered:
         filtered = filtered[filtered["MediaGroup"].isin(media_groups)]
+    if event_directions and "EventDirection" in filtered:
+        filtered = filtered[filtered["EventDirection"].isin(event_directions)]
     return filtered
 
 

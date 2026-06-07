@@ -71,3 +71,4 @@ rsconnect-python/
 
 # ── Node (not used here, safety net) ──────────────────────────────────────────
 node_modules/
+frontend/

@@ -13,7 +13,7 @@ import plotly.graph_objects as go
 from wordcloud import WordCloud
 
 from utils.constants import MEDIA_COLORS, MODEL_COLORS, PLOT_FONT, THEME_STYLES
-from utils.transforms import gap_extremes, geo_points, timeline_peaks
+from utils.transforms import gap_extremes, geo_points
 
 # Color ramps matching main branch (darkest → lightest)
 _WESTERN_RAMP = ["#1D3C5E", "#2B5190", "#3D6DA0", "#5A8FCA", "#7AAAD6", "#C1D8EE"]
@@ -186,23 +186,6 @@ def daily_volume_chart(daily: pd.DataFrame, theme_mode: str = "dark") -> go.Figu
                 "Avg tone: %{customdata[1]:.2f}<extra></extra>"
             ),
         ))
-    for _, row in timeline_peaks(daily, 3).iterrows():
-        fig.add_annotation(
-            x=row["Date"],
-            y=row["TotalEvents"],
-            text=f"{int(row['TotalEvents']):,}",
-            showarrow=True,
-            arrowhead=2,
-            arrowsize=1,
-            arrowwidth=1.2,
-            arrowcolor=theme["font_color"],
-            ax=0,
-            ay=-34,
-            font=dict(color=theme["font_color"], size=12),
-            bgcolor=theme["annotation_bg"],
-            bordercolor=theme["annotation_border"],
-            borderpad=4,
-        )
     fig.update_layout(xaxis_title="", yaxis_title="Events")
     return apply_layout(fig, height=500, theme_mode=theme_mode)
 
@@ -551,12 +534,15 @@ def keyword_chart(keywords: pd.DataFrame, top_n: int, theme_mode: str = "dark") 
     fig.add_annotation(x=0.98, y=1.05, xref="paper", yref="paper", text="Western distinctive", showarrow=False, font=dict(color=MEDIA_COLORS["Western"], size=12))
     fig.add_annotation(x=0.02, y=1.05, xref="paper", yref="paper", text="Chinese distinctive", showarrow=False, font=dict(color=MEDIA_COLORS["Chinese"], size=12))
     chart_height = min(620, max(430, 11 * len(plot_df) + 150))
+    max_abs = plot_df["display_score"].abs().max()
+    tick_vals = list(np.linspace(-max_abs, max_abs, 9))
+    tick_text = [f"{abs(v):.3f}" for v in tick_vals]
     fig.update_layout(
         xaxis_title="Contrastive TF-IDF score",
         yaxis_title="",
         height=chart_height,
     )
-    fig.update_xaxes(tickformat=".3f")
+    fig.update_xaxes(tickvals=tick_vals, ticktext=tick_text)
     return apply_layout(fig, height=chart_height, show_legend=False, hovermode="closest", bottom=68, theme_mode=theme_mode)
 
 

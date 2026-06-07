@@ -27,7 +27,7 @@ different emotional narratives around the same conflict?
 | 05 · Narrative Gap Forecasting | ARIMA / Holt-Winters / Prophet / TimesFM evaluated on a 14-day holdout |
 | Narrative Assistant | Optional floating AI chatbot powered by DeepSeek (requires API key) |
 
-All charts respond to the sidebar's **date range** and **media group** filters in real time.
+All charts respond to the sidebar's **date range**, **media group**, and **event direction** filters in real time. (Exception: the ToneGap time series in Section 03 is precomputed from all Western and Chinese events — only the date range filter applies to it.)
 
 ---
 
@@ -44,6 +44,8 @@ This dashboard uses **GDELT v2 event data** filtered to US–China tariff-war co
 | **Events KPI** | Count of event rows in the current filter |
 | **Articles KPI** | Sum of `NumArticles` across filtered events |
 | **Unique Sources KPI** | Count of distinct source domains extracted from `SOURCEURL` |
+| **Western tone KPI** | Mean `AvgTone` across Western-labelled events in the current filter |
+| **Chinese tone KPI** | Mean `AvgTone` across Chinese-labelled events in the current filter |
 | **ToneGap** | Difference in average tone between Western and Chinese media — used for narrative divergence analysis |
 
 Media group assignment is by outlet domain (Western / Chinese / Global-Other). Tone scores are
@@ -58,8 +60,8 @@ project2/
 ├── shiny_app/              # Dashboard app (Python Shiny)
 │   ├── app.py              # Shiny app object — entrypoint for deploy & shiny run
 │   ├── components/         # UI components: charts, chatbot widget, layout helpers
-│   ├── utils/              # Data loading, transforms, TF-IDF text analysis, DeepSeek client
-│   └── static/             # CSS and hero image
+│   ├── utils/              # Data loading, transforms, TF-IDF text analysis, DeepSeek client, colour constants
+│   └── static/             # CSS, hero image, and VinUni logo
 │
 ├── data/                   # Precomputed datasets (committed — no BigQuery needed to run)
 │   ├── gdelt_events_cleaned.parquet
@@ -86,6 +88,7 @@ project2/
 ├── main.py                 # Dashboard launcher (runs shiny_app/app.py via subprocess)
 ├── requirements.txt        # Full local environment (dashboard + pipeline + models)
 ├── requirements-deploy.txt # Lightweight dependencies for shinyapps.io deployment
+├── requirements-model.txt  # Prophet venv dependencies
 └── .env.example            # Environment variable template (safe to commit)
 ```
 
@@ -111,7 +114,7 @@ cp .env.example .env
 # The dashboard runs fully without this — the chatbot shows a friendly fallback if the key is missing.
 
 # 5. Launch the dashboard  →  http://127.0.0.1:8004
-python main.py
+
 
 # Custom port or auto-reload
 python main.py --port 8005 --reload

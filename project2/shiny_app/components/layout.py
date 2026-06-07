@@ -29,18 +29,6 @@ def chart_card(title: str, kicker: str, output_id: str, height: str = "460px", c
     return ui.div(*children, class_=f"chart-card {class_name}".strip())
 
 
-def table_card(title: str, description: str, output_id: str, class_name: str = ""):
-    return ui.div(
-        ui.div(
-            ui.div("Drilldown", class_="chart-kicker"),
-            ui.h3(title),
-            ui.p(description, class_="card-copy"),
-            class_="chart-card-header",
-        ),
-        ui.div(ui.output_data_frame(output_id), class_="table-stage"),
-        class_=f"chart-card table-card {class_name}".strip(),
-    )
-
 
 def ui_card(title: str, kicker: str, output_id: str, class_name: str = ""):
     return ui.div(

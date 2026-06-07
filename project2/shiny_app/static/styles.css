@@ -126,6 +126,21 @@ a {
   color: inherit;
 }
 
+/* ── Page container ────────────────────────────────────────────────────── */
+/* The CSS scrollport of a scroll container is its content area (not the
+   padding box). Bslib's .main has padding-top: 1.5rem (24px), so sticky
+   top:0 inside it sticks 24px below the viewport top. Setting padding-top:0
+   collapses the gap. Left/right/bottom padding are preserved.
+   .bslib-page-fill padding-top:0 is kept in case it was adding additional
+   space on some viewport configurations. */
+.bslib-page-fill {
+  padding-top: 0;
+}
+
+.bslib-sidebar-layout>.main {
+  padding-top: 0;
+}
+
 /* ── Sidebar ───────────────────────────────────────────────────────────── */
 .bslib-sidebar-layout {
   background: transparent;
@@ -160,12 +175,8 @@ a {
 }
 
 .sidebar-copy,
-.data-note,
-.card-copy,
 .section-copy,
-.kpi-note,
-.demo-lock,
-.small-copy {
+.kpi-note {
   color: var(--muted);
   font-size: 0.88rem;
   line-height: 1.5;
@@ -180,6 +191,46 @@ a {
 
 .sidebar .shiny-input-container {
   margin-bottom: 16px;
+}
+
+/* ── Sidebar footer ─────────────────────────────────────────────────────── */
+
+/* The <aside> must fill the sidebar panel height */
+.sidebar.sidebar-shell {
+  height: 100%;
+}
+
+/* .sidebar-content is Shiny/bslib's direct wrapper around sidebar children.
+   Making it a full-height flex column lets margin-top:auto on the footer
+   push it to the panel bottom regardless of filter count. */
+.sidebar.sidebar-shell>.sidebar-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 20px;
+  padding-bottom: 0px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sidebar-footer-logo {
+  width: 68px;
+  height: auto;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.sidebar-footer-text {
+  color: var(--muted-2);
+  font-size: 0.75rem;
+  line-height: 1.55;
 }
 
 .sidebar .shiny-input-container>label,
@@ -394,11 +445,6 @@ a {
   font-size: 0.94rem;
   font-weight: 700;
   margin-bottom: 10px;
-}
-
-.demo-lock {
-  color: rgba(240, 244, 252, 0.62);
-  font-size: 0.82rem;
 }
 
 .side-label {
@@ -748,29 +794,32 @@ a {
 .topk-card-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
 }
 
 .topk-card-title {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
 }
 
 .topk-control {
-  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-left: auto;
 }
 
 .topk-control .shiny-input-container {
   margin-bottom: 0;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 10px;
 }
 
 .topk-control .shiny-input-container>label {
   color: var(--text);
-  font-size: 0.82rem;
+  font-size: 0.90rem;
   font-weight: 650;
   letter-spacing: 0.03em;
   white-space: nowrap;
@@ -800,13 +849,6 @@ a {
   outline: none;
   border-color: var(--western);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--western) 18%, transparent);
-}
-
-.chart-subkicker {
-  color: var(--muted);
-  font-size: 0.72rem;
-  margin: 0;
-  padding: 0 20px 2px;
 }
 
 /* ── Chart usage tips ──────────────────────────────────────────────────── */
@@ -903,19 +945,17 @@ a {
   gap: 12px;
 }
 
-/* Title keeps its natural width; switcher grows to fill the rest */
+/* Title keeps its natural width */
 .map-card-title {
   flex: 0 0 auto;
 }
 
-/* Switcher grows to fill remaining row width and centers its pills.
-   When flex-wrap kicks in at narrow viewports, it takes the full
-   second-row width and pills remain centered there too. */
+/* Switcher is pushed to the right edge of the header row. */
 .map-style-switcher {
   display: flex;
   align-items: center;
-  justify-content: center;
-  flex: 1 1 auto;
+  justify-content: flex-end;
+  margin-left: auto;
 }
 
 /* Shiny wraps the input in a div with a default bottom margin — reset it */
@@ -1023,13 +1063,6 @@ a {
 /* ── Word cloud ────────────────────────────────────────────────────────── */
 .word-cloud-wrap {
   padding: 12px 14px 16px;
-}
-
-.cloud-caption {
-  color: var(--muted);
-  font-size: 0.90rem;
-  line-height: 1.52;
-  margin: 0 0 12px;
 }
 
 #word_cloud img,
@@ -1544,7 +1577,7 @@ html:has(#theme_mode input[value="light"]:checked) .chat-panel-header {
 }
 
 /* ── Sidebar bslib collapse toggle ─────────────────────────────────────── */
-.bslib-sidebar-layout > .collapse-toggle {
+.bslib-sidebar-layout>.collapse-toggle {
   background: var(--panel-soft) !important;
   border: 1px solid var(--line-strong) !important;
   color: var(--text) !important;
@@ -1552,7 +1585,7 @@ html:has(#theme_mode input[value="light"]:checked) .chat-panel-header {
   transition: opacity 150ms ease, border-color 150ms ease, background 150ms ease;
 }
 
-.bslib-sidebar-layout > .collapse-toggle:hover {
+.bslib-sidebar-layout>.collapse-toggle:hover {
   background: color-mix(in srgb, var(--western) 14%, var(--panel-soft)) !important;
   border-color: color-mix(in srgb, var(--western) 48%, var(--line)) !important;
   opacity: 1;

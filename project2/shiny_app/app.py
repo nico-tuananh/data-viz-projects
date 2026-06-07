@@ -23,7 +23,7 @@ from components.charts import (
 from components.chatbot import chatbot_panel
 from components.layout import chart_card, insight_card, kpi_card, story_section, ui_card
 from utils.dashboard_context import build_context
-from utils.data import available_media, date_bounds, filter_by_controls, load_dashboard_data, top_sources
+from utils.data import available_directions, available_media, date_bounds, filter_by_controls, load_dashboard_data, top_sources
 from utils.deepseek_client import (
     SYSTEM_PROMPT,
     call_deepseek,
@@ -38,6 +38,7 @@ APP_DIR = Path(__file__).parent
 DATA = load_dashboard_data()
 DATE_MIN, DATE_MAX = date_bounds(DATA.events)
 MEDIA_CHOICES = available_media(DATA.events)
+DIRECTION_CHOICES = available_directions(DATA.events)
 DEFAULT_KEYWORDS = framing_dataframe(DATA.events, 30) if not DATA.events.empty else pd.DataFrame()
 DEFAULT_CLOUD_TERMS = word_cloud_terms(DATA.events, 100) if not DATA.events.empty else pd.DataFrame()
 FORECAST_MODELS = (
@@ -93,12 +94,32 @@ app_ui = ui.page_sidebar(
             choices=MEDIA_CHOICES,
             selected=MEDIA_CHOICES,
         ),
+        ui.input_checkbox_group(
+            "event_direction",
+            "Event direction",
+            choices=DIRECTION_CHOICES,
+            selected=DIRECTION_CHOICES,
+        ),
         ui.input_radio_buttons(
             "theme_mode",
             "Theme",
             choices={"dark": "Dark", "light": "Light"},
             selected="dark",
             inline=True,
+        ),
+        ui.div(
+            ui.tags.img(src="VinUni_logo.png?v=2", class_="sidebar-footer-logo"),
+            ui.div(
+                ui.tags.span("COMP4010 - Data Visualisation"),
+                ui.tags.br(),
+                ui.tags.span("Instructor: Huynh Thanh Trung"),
+                ui.tags.br(),
+                ui.tags.span("TA: Ta Quang Hieu"),
+                ui.tags.br(),
+                ui.tags.span("Group 8"),
+                class_="sidebar-footer-text",
+            ),
+            class_="sidebar-footer",
         ),
         width=300,
         class_="sidebar-shell",
@@ -372,7 +393,7 @@ app_ui = ui.page_sidebar(
         "ToneGap = Western weighted tone − Chinese weighted tone. Positive values mean Western "
         "coverage is warmer than Chinese coverage on the same day. "
         "Note: ToneGap is precomputed from all Western and Chinese events — "
-        "the media-group filter does not apply to this chart.",
+        "the media-group and event-direction filters do not apply to this chart.",
         "Watch zero-line crossings, extreme gaps, and whether tone shifts coincide with high-volume "
         "days. The shaded region shows which bloc is more positive at any moment.",
         ui.div(
@@ -389,7 +410,7 @@ app_ui = ui.page_sidebar(
                 class_="chart-tip",
             ),
             ui.p(
-                "The media-group filter does not apply to this chart — ToneGap is precomputed from Western and Chinese media together.",
+                "The media-group and event-direction filters do not apply to this chart — ToneGap is precomputed from Western and Chinese media together.",
                 class_="chart-tip",
             ),
             ui.div(output_widget("tone_gap", height="500px"), class_="chart-stage"),
@@ -448,7 +469,7 @@ app_ui = ui.page_sidebar(
                 ui.div(
                     ui.input_select(
                         "keyword_top_n",
-                        "Top-k terms",
+                        "Top-k terms per side",
                         choices=[10, 12, 15, 20, 30],
                         selected=10,
                     ),
@@ -545,6 +566,10 @@ def server(input, output, session):
         return list(input.media_groups() or [])
 
     @reactive.Calc
+    def selected_directions() -> list[str]:
+        return list(input.event_direction() or [])
+
+    @reactive.Calc
     def current_theme() -> str:
         return input.theme_mode() or "dark"
 
@@ -556,6 +581,7 @@ def server(input, output, session):
             start,
             end,
             selected_media(),
+            selected_directions(),
         )
 
     @reactive.Calc
@@ -843,12 +869,13 @@ def server(input, output, session):
         await asyncio.sleep(0)  # yield so the UI renders the loading state
 
         ctx = build_context(
-            events         = filtered_events(),
-            tone_gap       = filtered_tone_gap(),
-            date_start     = selected_dates()[0],
-            date_end       = selected_dates()[1],
-            media_groups   = selected_media(),
+            events           = filtered_events(),
+            tone_gap         = filtered_tone_gap(),
+            date_start       = selected_dates()[0],
+            date_end         = selected_dates()[1],
+            media_groups     = selected_media(),
             forecast_metrics = DATA.forecast_metrics,
+            event_directions = selected_directions(),
         )
 
         try:
@@ -897,6 +924,5 @@ app = App(
     # Combined with method="link_files" in include_css, this ensures:
     #   - CSS url("US-China-trade-war-web2.jpg") resolves correctly
     #   - <img src="US-China-trade-war-web2.jpg"> resolves correctly
-    #   - <img src="phrase_word_cloud.png"> resolves correctly
     static_assets=APP_DIR / "static",
 )

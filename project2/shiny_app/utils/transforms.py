@@ -58,11 +58,6 @@ def geo_points(events: pd.DataFrame) -> pd.DataFrame:
     return grouped.sort_values("NumArticles", ascending=False).head(1200)
 
 
-def timeline_peaks(daily: pd.DataFrame, limit: int = 3) -> pd.DataFrame:
-    if daily.empty or "TotalEvents" not in daily:
-        return pd.DataFrame()
-    return daily.sort_values("TotalEvents", ascending=False).head(limit).copy()
-
 
 def gap_extremes(tone_gap: pd.DataFrame) -> tuple[pd.Series | None, pd.Series | None]:
     if tone_gap.empty or "ToneGap" not in tone_gap:
@@ -88,42 +83,3 @@ def forecast_metric_cards(metrics: pd.DataFrame) -> list[dict]:
     return rows
 
 
-def analyst_summary(events: pd.DataFrame, tone_gap: pd.DataFrame, keywords: pd.DataFrame, metrics: pd.DataFrame) -> dict:
-    summary: dict[str, object] = {
-        "events": len(events),
-        "articles": int(events["NumArticles"].sum()) if "NumArticles" in events and not events.empty else 0,
-        "sources": int(events["SourceDomain"].nunique()) if "SourceDomain" in events and not events.empty else 0,
-        "western_tone": None,
-        "chinese_tone": None,
-        "avg_gap": None,
-        "biggest_spike": None,
-        "keywords": [],
-        "best_model": None,
-    }
-    if not events.empty and {"MediaGroup", "AvgTone"}.issubset(events.columns):
-        western = events.loc[events["MediaGroup"] == "Western", "AvgTone"].mean()
-        chinese = events.loc[events["MediaGroup"] == "Chinese", "AvgTone"].mean()
-        summary["western_tone"] = None if pd.isna(western) else float(western)
-        summary["chinese_tone"] = None if pd.isna(chinese) else float(chinese)
-    if not tone_gap.empty and "ToneGap" in tone_gap:
-        gap = tone_gap["ToneGap"].mean()
-        summary["avg_gap"] = None if pd.isna(gap) else float(gap)
-    daily = event_daily(events)
-    if not daily.empty:
-        spike = daily.sort_values("TotalEvents", ascending=False).iloc[0]
-        summary["biggest_spike"] = {
-            "date": spike["Date"].strftime("%b %d"),
-            "group": spike["MediaGroup"],
-            "events": int(spike["TotalEvents"]),
-            "articles": int(spike["TotalArticles"]),
-        }
-    if not keywords.empty:
-        summary["keywords"] = (
-            keywords.sort_values("score", ascending=False)
-            .head(6)["term"]
-            .tolist()
-        )
-    if not metrics.empty and {"model", "mae"}.issubset(metrics.columns):
-        best = metrics.sort_values("mae").iloc[0]
-        summary["best_model"] = {"model": best["model"], "mae": float(best["mae"])}
-    return summary

@@ -49,7 +49,7 @@ project2/
 │   └── static/
 │       ├── styles.css
 │       ├── US-China-trade-war-web2.jpg   ← hero image
-│       └── phrase_word_cloud.png
+│       └── VinUni_logo.png               ← sidebar footer logo
 │
 ├── data/                    ← precomputed parquet/CSV files
 │   ├── gdelt_events_cleaned.parquet
@@ -62,7 +62,8 @@ project2/
 │   ├── forecast_models.py   ← ARIMA, Holt-Winters, Prophet, TimesFM
 │   ├── output/
 │   │   ├── forecast_metrics.csv
-│   │   └── forecast_predictions.csv
+│   │   ├── forecast_predictions.csv
+│   │   └── forecast_summary.txt
 │   └── images/              ← forecast plot PNGs
 │
 ├── scripts/                 ← data pipeline scripts
@@ -72,10 +73,12 @@ project2/
 │
 ├── docs/                    ← documentation
 │   ├── forecast_report.md   ← forecasting methodology & results
-│   └── timesfm_setup.md     ← TimesFM environment setup guide
+│   ├── timesfm_setup.md     ← TimesFM environment setup guide
+│   └── DATA_PIPELINE.md     ← GDELT ETL pipeline walkthrough
 │
 ├── main.py                  ← dashboard launcher
 ├── requirements.txt         ← dependencies (dashboard + pipeline)
+├── requirements-deploy.txt  ← lightweight dependencies for shinyapps.io deployment
 ├── requirements-model.txt   ← Prophet venv dependencies
 └── .env.example             ← environment variable template
 ```
@@ -335,16 +338,15 @@ Positive → Western coverage is more positive than Chinese; negative → opposi
 |---|---|
 | Date range | Filters all event-level charts and the source table |
 | Media groups | Show / hide Western, Chinese, Global/Other traces |
+| Event direction | Filter events by direction: USA→CHN or CHN→USA |
 | Theme | Dark (default) or Light |
-| Action countries | Drilldown to specific countries |
-| Map view | US–China Focus (globe) or Global Spread |
-| Map style | Globe or Flat World Map toggle (in-section) |
-| Keyword top-k | Number of TF-IDF terms shown in the framing bar chart |
-| Forecast models | Toggle individual forecast model lines |
-| Source top-N / search / sort | Filter the source-domain drilldown table |
+| Map style | Globe or Flat World Map toggle (in-section, Section 2) |
+| Keyword top-k | Number of TF-IDF terms shown in the framing bar chart (in-section, Section 4) |
+| Forecast models | Toggle individual forecast model lines (in-section, Section 5) |
+| Source top-N / search / sort | Filter the source-domain drilldown table (in-section, Section 2) |
 
 > **Note:** The ToneGap chart (Section 3) is precomputed from all Western and Chinese
-> events. The media-group filter does not affect ToneGap — only the date range filter applies.
+> events. The media-group and event-direction filters do not affect ToneGap — only the date range filter applies.
 
 ---
 
