@@ -162,15 +162,17 @@ app_ui = ui.page_sidebar(
             """
             (function() {
               var SECTION_IDS = ['timeline', 'spread', 'divergence', 'framing', 'forecast'];
+              var _initialized = false;
 
               function initStoryNav() {
+                if (_initialized) return;
                 var links = document.querySelectorAll('.story-nav-link');
-                if (!links.length) { return; }
+                if (!links.length) return;
+                _initialized = true;
 
                 function setActive(id) {
                   links.forEach(function(l) {
-                    var match = l.getAttribute('href') === '#' + id;
-                    l.classList.toggle('active', match);
+                    l.classList.toggle('active', l.getAttribute('href') === '#' + id);
                   });
                 }
 
@@ -178,38 +180,43 @@ app_ui = ui.page_sidebar(
                 links.forEach(function(link) {
                   link.addEventListener('click', function() {
                     var href = link.getAttribute('href');
-                    if (href && href.startsWith('#')) {
-                      setActive(href.slice(1));
-                    }
+                    if (href && href.startsWith('#')) setActive(href.slice(1));
                   });
                 });
 
-                // IntersectionObserver → activate on scroll
-                // rootMargin keeps the detection zone between the sticky nav
-                // bottom (~48px) and the middle of the viewport.
-                var visible = new Set();
-                var observer = new IntersectionObserver(function(entries) {
-                  entries.forEach(function(e) {
-                    if (e.isIntersecting) { visible.add(e.target.id); }
-                    else                  { visible.delete(e.target.id); }
-                  });
-                  // Pick the topmost visible section in document order
-                  for (var i = 0; i < SECTION_IDS.length; i++) {
-                    if (visible.has(SECTION_IDS[i])) {
-                      setActive(SECTION_IDS[i]);
-                      return;
+                // Measure the sticky nav height once; used as the trigger threshold.
+                // getBoundingClientRect() is viewport-relative, so this works whether
+                // the scroll container is .main (bslib sidebar) or the window.
+                var navEl = document.querySelector('.story-nav');
+                var navH = navEl ? navEl.offsetHeight + 4 : 62;
+
+                function updateActive() {
+                  var active = null;
+                  // Walk sections bottom-to-top; the last one whose top edge has
+                  // passed the nav bottom is the currently active section.
+                  for (var i = SECTION_IDS.length - 1; i >= 0; i--) {
+                    var el = document.getElementById(SECTION_IDS[i]);
+                    if (!el) continue;
+                    if (el.getBoundingClientRect().top <= navH + 2) {
+                      active = SECTION_IDS[i];
+                      break;
                     }
                   }
-                }, { rootMargin: '-48px 0px -48% 0px', threshold: 0 });
+                  if (active) setActive(active);
+                }
 
-                SECTION_IDS.forEach(function(id) {
-                  var el = document.getElementById(id);
-                  if (el) { observer.observe(el); }
-                });
+                // Attach to whichever element actually scrolls:
+                // bslib's page_sidebar makes .main the scroll container; fall
+                // back to window if .main is not overflowing.
+                var mainEl = document.querySelector('.bslib-sidebar-layout>.main');
+                var scrollEl = (mainEl && mainEl.scrollHeight > mainEl.clientHeight)
+                  ? mainEl : window;
+                scrollEl.addEventListener('scroll', updateActive, { passive: true });
+                updateActive();
               }
 
-              document.addEventListener('DOMContentLoaded', function() { setTimeout(initStoryNav, 150); });
-              document.addEventListener('shiny:connected',   function() { setTimeout(initStoryNav, 150); });
+              document.addEventListener('DOMContentLoaded', function() { setTimeout(initStoryNav, 200); });
+              document.addEventListener('shiny:connected',   function() { setTimeout(initStoryNav, 400); });
             })();
             """
         ),

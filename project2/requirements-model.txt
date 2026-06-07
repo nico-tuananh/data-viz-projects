@@ -1,4 +1,4 @@
-# Model-only dependencies — install in a separate venv (see shiny_app/README.md §6)
+# Model-only dependencies — install in a separate venv (see README.md, "Regenerate forecast outputs")
 #
 # Prophet venv (.venv-prophet):
 #   python3 -m venv .venv-prophet
