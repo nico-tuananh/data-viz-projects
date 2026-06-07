@@ -172,14 +172,12 @@ rsconnect deploy shiny . \
   --requirements-file requirements-deploy.txt \
   --exclude ".venv" \
   --exclude "__pycache__" \
-  --exclude ".env" \
   --exclude "*.pyc" \
   --exclude "scripts/" \
   --exclude "requirements-model.txt"
 ```
 
-`.env` is explicitly excluded so no secrets are uploaded. The `DEEPSEEK_API_KEY` is configured
-separately as a secure environment variable in the shinyapps.io dashboard.
+`.env` is explicitly excluded so no secrets are uploaded.
 
 ---
 
