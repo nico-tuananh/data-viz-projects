@@ -70,7 +70,7 @@ project2/
 ├── data/                   # Precomputed datasets (no BigQuery needed to run)
 ├── forecasting/            # Forecast models + precomputed outputs
 ├── scripts/                # GDELT data collection pipeline (optional)
-├── docs/                   # Forecasting methodology and setup notes
+├── docs/                   # Forecasting methodology, setup notes, and data pipeline docs
 ├── main.py                 # Dashboard launcher
 ├── requirements.txt        # Full local dependencies
 └── requirements-deploy.txt # Deployment-only dependencies
@@ -93,4 +93,4 @@ cp .env.example .env
 python main.py
 ```
 
-See `project2/README.md` for full setup details, deployment instructions, and team task allocation.
+See `project2/README.md` for full setup details, deployment instructions, and team task allocation. Data pipeline notes: [`project2/docs/DATA_PIPELINE.md`](project2/docs/DATA_PIPELINE.md).
