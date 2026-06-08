@@ -182,7 +182,7 @@ The Narrative Assistant chatbot is entirely optional. The dashboard is fully fun
 **With API key** (uses DeepSeek with current dashboard context):
 - Summarize the current filtered view
 - Compare Western vs Chinese tone in the active date range
-- Any open-ended analytical question about the data
+- Any open-ended analytical question about the dataset
 
 ---
 
