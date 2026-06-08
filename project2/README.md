@@ -143,7 +143,7 @@ source .venv/bin/activate      # Windows: .venv\Scripts\activate
 # 3. Install dependencies
 pip install -r requirements.txt
 
-# 4. (Optional) Set up the AI chatbot
+# 4. Set up the AI chatbot
 cp .env.example .env
 # Edit .env and add your DeepSeek key:
 #   DEEPSEEK_API_KEY=<your-key-here>

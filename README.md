@@ -85,7 +85,7 @@ python3 -m venv .venv
 source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
-# (Optional) Enable the AI chatbot
+# Enable the AI chatbot
 cp .env.example .env
 # Edit .env and add: DEEPSEEK_API_KEY=<your-key-here>
 # The dashboard runs fully without it — chatbot shows a fallback if the key is missing.
